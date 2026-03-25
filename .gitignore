@@ -143,6 +143,9 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+.venv/
+# Local model artifacts
+app/data/models/logbert/
 
 # Spyder project settings
 .spyderproject
