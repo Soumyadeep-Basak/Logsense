@@ -25,6 +25,9 @@ openai   # used as client for Grok endpoint
 # Groq
 groq
 
+# Cohere
+cohere
+
 # Vector + similarity (optional but useful)
 scikit-learn
 

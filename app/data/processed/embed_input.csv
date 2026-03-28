@@ -1,0 +1,25 @@
+chunk_id,text
+chunk_1,"SSHD experienced an authentication failure from 211.46.224.253, while FTPD logged multiple connections from 24.54.76.216 and 82.252.162.81."
+chunk_2,Authentication failures were detected for multiple SSH processes (sshd) with the same rhost (adsl-70-242-75-179.dsl.ksc2mo.swbell.net) and tty (NODEVssh) within 1 second.
+chunk_3,"ftpd logged repeated connections from 82.252.162.81, a user session was opened and closed for user cyrus, and logrotate exited with a non-zero status code."
+chunk_4,"Cupsd service restarted, and logrotate exited abnormally, but su sessions and syslogd restarted normally."
+chunk_5,Anomalous snmpd activity and multiple sshd authentication failures occurred within a short time frame.
+chunk_6,PAM_unix module in sshd reported authentication failures with unknown users and a single rhost (massive.merukuru.org) across multiple processes.
+chunk_7,"Connections from IP addresses 210.118.170.95 and 211.167.68.59 were logged, and processes like cups, syslogd, and logrotate restarted or exited abnormally."
+chunk_8,"SSHD experienced authentication failures for user 'root' from 'troi.bluesky-technologies.com' on June 27, while logrotate exited abnormally on both days."
+chunk_9,Authentication failures occurred on the sshd service due to repeated pam_unix errors with a single IP address (62-192-102-94.dsl.easynet.nl) attempting to log in as root.
+chunk_10,SSHD process experienced authentication failures for user 'root' from IP address 208.62.55.75 between 12:11:53 and 12:12:03.
+chunk_11,Kerberos authentication failed with permission denied and software caused connection abort errors from IP address 163.27.187.39.
+chunk_12,"Authentication failures occurred for user 'root' from IP 60.30.224.116, and processes 'sshd', 'su', and 'logrotate' exited abnormally."
+chunk_13,"Authentication failures for user 'root' from IP address 195.129.24.210, likely due to repeated incorrect login attempts."
+chunk_14,"SSHD experienced authentication failures and unexpected connections from unknown users, while logrotate and other system processes exited abnormally."
+chunk_15,"Authentication failures were detected in SSHD (uid=0, euid=0, rhost=210.76.59.29) and logrotate exited abnormally with status [1]."
+chunk_16,SSHD process experienced repeated authentication failures for user root from IP 220.117.241.87 between 19:15:48 and 19:16:01.
+chunk_17,"A user session was opened and closed for 'test' by sshd, followed by a root login on tty2, with anomalies detected in gpm and unknown process --."
+chunk_18,"syslogd restarted, logrotate exited abnormally, and su sessions opened and closed for users cyrus and news."
+chunk_19,Authentication failures were detected by pam_unix in sshd process with rhost=82.77.200.128 and user=root.
+chunk_20,"Multiple authentication failures occurred for user 'root' via SSH from IP 211.137.205.253, with GDM also experiencing an authentication failure."
+chunk_21,getpeername (ftpd) errors and xinetd warnings indicate Transport endpoint is not connected and Connection reset by peer.
+chunk_22,"Authentication failures occurred for user 'root' from IP address 207.243.167.114, and system processes exhibited abnormal behavior, including session openings and closings, and unexpected restarts of services."
+chunk_23,SELinux failed to register due to existing security framework and capability registration failure.
+chunk_24,"Anomalies occurred during kernel initialization, including unexpected PCI IRQ routing entries, invalid ACPI-PCI IRQ routing table, and failed Plug & Play device detection."

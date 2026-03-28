@@ -6,11 +6,15 @@ from pathlib import Path
 import pandas as pd
 from dotenv import load_dotenv
 
-from app.config import ANOMALIES_PATH, CHUNKS_PATH
+from app.config import (
+    ANOMALIES_PATH,
+    CHUNKS_PATH,
+    GROQ_API_KEY_ENV_VAR,
+    GROQ_INCIDENT_DESCRIPTION_MODEL,
+    GROQ_REQUEST_DELAY_SECONDS,
+    GROQ_MAX_RETRIES,
+)
 
-MODEL_NAME = "llama-3.1-8b-instant"
-DEFAULT_REQUEST_DELAY_SECONDS = 2.0
-DEFAULT_MAX_RETRIES = 3
 MAX_ROW_TEXT_LENGTH = 180
 OUTPUT_COLUMNS = [
     "chunk_id",
@@ -42,15 +46,15 @@ def enrich_chunks_with_descriptions(
     chunks_csv: str | Path = CHUNKS_PATH,
     logs_csv: str | Path = ANOMALIES_PATH,
     output_csv: str | Path | None = None,
-    model_name: str = MODEL_NAME,
-    request_delay_seconds: float = DEFAULT_REQUEST_DELAY_SECONDS,
-    max_retries: int = DEFAULT_MAX_RETRIES,
+    model_name: str = GROQ_INCIDENT_DESCRIPTION_MODEL,
+    request_delay_seconds: float = GROQ_REQUEST_DELAY_SECONDS,
+    max_retries: int = GROQ_MAX_RETRIES,
 ) -> None:
     """Populate chunk descriptions using Groq and write the enriched CSV."""
     _load_env()
-    api_key = os.getenv("GROQ_API_KEY")
+    api_key = os.getenv(GROQ_API_KEY_ENV_VAR)
     if not api_key:
-        raise RuntimeError("Missing GROQ_API_KEY in environment.")
+        raise RuntimeError(f"Missing {GROQ_API_KEY_ENV_VAR} in environment.")
 
     try:
         from groq import Groq
