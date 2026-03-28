@@ -22,6 +22,9 @@ google-generativeai
 # Grok (X AI / OpenAI-compatible)
 openai   # used as client for Grok endpoint
 
+# Groq
+groq
+
 # Vector + similarity (optional but useful)
 scikit-learn
 
