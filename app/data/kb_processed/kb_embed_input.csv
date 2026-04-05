@@ -1,0 +1,1206 @@
+kb_chunk_id,text
+kb_discourse_30189,"QUESTION: SSHd now uses socket-based activation (Ubuntu 22.10 and later)
+As of version 1:9.0p1-1ubuntu1 of 
+openssh-server
+ in Kinetic Kudu (Ubuntu 22.10), OpenSSH in Ubuntu is configured by default to use systemd socket activation.  This means that sshd will not be started until an incoming connection request is received.  This has been done to reduce the memory consumed by Ubuntu Server instances by default, which is of particular interest with Ubuntu running in VMs or LXD containers: by not running sshd when it is not used, we save at least 3MiB of memory in each instance, representing a savings of roughly 5% on an idle, pristine kinetic container.
+
+At Canonical we care about making Ubuntu as efficient as possible on your hardware and in the cloud, which is why this change has been landed as part of a larger effort to reduce the default memory footprint of our images.  A default Ubuntu 22.04 LXD image at release time used 65MiB of RAM, which in kinetic now uses 58MiB after this OpenSSH change; and more improvements are in progress, with the intention of backporting the safer changes to our Ubuntu 22.04 images to improve memory usage for the greatest number of users.
+
+On new installs of Ubuntu 22.10 or later, the OpenSSH change in behavior should be completely transparent to users.
+
+In Ubuntu 22.10, Ubuntu 23.04, and Ubuntu 23.10, on upgrade users who had configured 
+Port
+ settings or a 
+ListenAddress
+ setting in 
+/etc/ssh/sshd_config
+ will find these settings migrated to 
+/etc/systemd/system/ssh.socket.d/addresses.conf
+.  (As an exception, if more than one 
+ListenAddress
+ setting is declared, the configuration is not migrated because systemd’s 
+ListenStream
+ has different semantics: any address configured which is not present at boot time would cause the 
+ssh.socket
+ unit to not start.  Because it is not possible to reliably determine at upgrade time whether 
+ssh.socket
+ could fail to start on reboot, if you have more than one 
+ListenAddress
+ configured, your system will not be migrated to socket-based activation but instead the daemon will be started on boot as before.)
+
+In Ubuntu 24.04 LTS these settings are no longer migrated, but the port and address settings are pulled dynamically from 
+sshd.conf
+ via a systemd generator.
+
+Socket activation is recommended wherever possible, but if for any reason you find after migration that this is incompatible with your configuration, it is still possible to revert to the previous non-socket-activated behavior by running:
+
+systemctl disable --now ssh.socket
+rm -f /etc/systemd/system/ssh.service.d/00-socket.conf
+rm -f /etc/systemd/system/ssh.socket.d/addresses.conf
+systemctl daemon-reload
+systemctl enable --now ssh.service
+
+ANSWERS:
+Works well for me. One thing I verified is that the 
+hosts_access(5)
+ (libwrap) remains the same: it does. I do have a couple of suggestions:
+
+We still ship 
+sshd_config
+ with 
+#ListenAddress
+ and 
+#Port
+ lines, with no warning about them not being honored anymore by default. Users editing those will be surprised that they have no effect. I think they should be replaced or complemented by a comment explaining the new way for specifying the listen address and port (maybe by pointing to 
+openssh-server.README.Debian
+, see below). I see that this requires patching upstream’s 
+sshd_config
+, which is a bit annoying.
+
+There’s useful info about socket-based activation in 
+README.Debian
+, but I initially failed to find it because it gets installed by the 
+openssh-client
+ package, as it’s the first package specified in 
+d/control
+. Consider moving the socket activation bits to 
+d/openssh-server.README.Debian
+ in the source package.
+
+TIL about 
+sd_listen_fds(3)
+!
+
+Thanks for the feedback.  It was intended to document in the default sshd_config that these options are unused, but that didn’t get done yet.  I’ll make sure that’s handled in the next upload.
+
+As far as finding README.Debian, openssh-server has a strict versioned dependency on openssh-client because  /usr/share/doc/openssh-server is a symlink to /usr/share/doc/openssh-client - so I’m not sure why this prevented you from finding it?
+
+vorlon:
+
+As far as finding README.Debian, openssh-server has a strict versioned dependency on openssh-client because /usr/share/doc/openssh-server is a symlink to /usr/share/doc/openssh-client - so I’m not sure why this prevented you from finding it?
+
+As I was inspecting the package more in general I had a look at the files installed by 
+openssh-server
+ and didn’t see 
+README.Debian
+. This is not what users will (and should) normally do, I think the current approach is good, thanks for pointing me to it.
+
+What will happen if there are Port or ListenAddress entries in an Include file eg in /etc/ssh/sshd_config.d? Thanks
+
+the upgrade code understands and follows Include directives.
+
+Hello,
+
+So in simple terms, how can we change the ssh port on a new install of Ubuntu 22.10?
+
+(I cannot find the right way to do it,  after editing the port in 
+/lib/systemd/system/ssh.socket
+, the port 
+ssh.socket
+ is listening to changed as excepted and it starts successfully, however whenever I try to SSH, 
+ssh.socket
+ on the server side will fail immediately and refuse connections.)
+
+in README.Debian you write
+
+mkdir -p /etc/systemd/system/ssh.socket.d
+cat >/etc/systemd/system/ssh.socket.d/listen.conf <<EOF
+[Socket]
+ListenStream=2222
+EOF
+
+this makes sshd listen on port 2222 and port 22.
+
+I think you should mention that for sshd to listen n 2222 only  you need to do this:
+
+mkdir -p /etc/systemd/system/ssh.socket.d
+cat >/etc/systemd/system/ssh.socket.d/listen.conf <<EOF
+[Socket]
+ListenStream=
+ListenStream=2222
+EOF
+
+quote from man systemd.socket
+
+These options may be specified more than once, in which case incoming traffic on any of the sockets will trigger service activation, and all listed sockets will be passed to the service,
+regardless of whether there is incoming traffic on them or not. If the empty string is assigned to any of these options, the list of addresses to listen on is reset, all prior uses of any
+of these options will have no effect.
+
+Long story short - for all those who do not like this change:
+
+systemctl disable --now ssh.socket
+
+systemctl enable --now ssh.service
+
+As per: /usr/share/doc/openssh-server/README.Debian.gz
+
+Then the /etc/ssh/sshd_config works again with Ports and Addresses settings.
+
+in some cases when updating 
+/etc/systemd/system/ssh.service.d/00-socket.conf
+ is created.
+
+This file forces the use of ssh.socket. You might also check the existence of this file and delete it followed by a 
+systemctl daemon-reload
+
+This solution works fine, thanks.
+
+I’m trying to bind to an IP address assigned by DHCP by mac and that fails, apparently the socket is created before the IP is set up.
+
+I want to exclude all but this interface from being served sshd. How am I going about that with ssh.socket?
+
+What is the benefit of ssh.socket? The price is that ssh configuration is now split between the actual ssh daemon and systemd. I rarely read ssh documentation or even the comments in sshd_config anymore and was just baffled first that my settings are ignored, then that there was not /etc/systemd/system/ssh.socket.d but an ssh.service.d that apparently was not used. ssh.socket.d does of course not use sshd_config syntax. The package is named ssh, the documentation is named openssh. I had to find out that the actual documentation is in systemd.socket. All that was a bit annoying, since I had something else to accomplish and just wanted to log into that box.
+
+It sounds like in the near future, ssh.service will be deprecated or somehow disabled, so I’m not sure if it’s a good idea to just ignore it and revert to ssh.service.
+
+There must be some substantial benefit of using the socket mechanism? I didn’t find any mention anywhere what that in the case of sshd might be…
+
+The problem with not using “/etc/ssh/sshd_config” is that if you stop sshd (sshd stop service), and start it (sshd start service) it takes the port from the “/etc/ssh/sshd_config” configuration file, and not from “/etc/systemd/system/ssh.socket.d/listen.conf”!
+
+For me this is not a very good solution because it generates human errors!
+
+A small comment in the config file on “
+#Port
+” would be a minimum and welcome 
+
+If you like a comment … to avoid the admin to waste their time
+
+I am still wondering why Ubuntu would change something that has been working since the last century.  For me the fixes didn’t work until I reverted back to the old configuration.  So for me, this is 3 strikes.
+
+1 strike for changing it in the first place.
+
+2nd for the socket-based fix not working
+
+3rd strike for inadequate documentation.
+
+I did a search as to why socket based activation is “superior”.  Supposedly it is there to minimize memory usage.  Allegedly this reduces memory from 65MiB to 58Mib.  I guess if this makes the ppl at Canonical happy but even a Raspberry PI 3B has 1 GB of memory.
+
+I’m having similar issues with sshd on my ubuntu 22.10 installation.  I have followed the instructions in 
+/usr/share/doc/openssh-server/README.Debian.gz
+:
+
+  systemctl disable --now ssh.socket
+  systemctl enable --now ssh.service
+
+however, as the outputs of a few different commands I’ve typed show, 
+ssh.socket is still running
+ and systemd is still listening to port 22.
+
+root@bournemouth:/usr/share/doc/openssh-client# systemctl status ssh.service
+● ssh.service - OpenBSD Secure Shell server
+     Loaded: loaded (/lib/systemd/system/ssh.service; enabled; preset: enabled)
+    Drop-In: /etc/systemd/system/ssh.service.d
+             └─00-socket.conf
+     Active: active (running) since Sat 2023-04-22 23:42:40 EDT; 10min ago
+TriggeredBy: ● ssh.socket
+...
+
+root@bournemouth:/usr/share/doc/openssh-client# systemctl status ssh.socket
+● ssh.socket - OpenBSD Secure Shell server socket
+     Loaded: loaded (/lib/systemd/system/ssh.socket; disabled; preset: enabled)
+     Active: active (running) since Sat 2023-04-22 23:42:40 EDT; 10min ago
+      Until: Sat 2023-04-22 23:42:40 EDT; 10min ago
+   Triggers: ● ssh.service
+     Listen: [::]:22 (Stream)
+      Tasks: 0 (limit: 9365)
+     Memory: 4.0K
+        CPU: 1ms
+     CGroup: /system.slice/ssh.socket
+...
+
+root@bournemouth:/usr/share/doc/openssh-client# lsof -iTCP -sTCP:LISTEN 
+COMMAND     PID            USER   FD   TYPE DEVICE SIZE/OFF NODE NAME
+systemd       1            root   60u  IPv6 214824      0t0  TCP *:ssh (LISTEN)
+systemd       1            root  345u  IPv4  17890      0t0  TCP *:sunrpc (LISTEN)
+systemd       1            root  347u  IPv6  17891      0t0  TCP *:sunrpc (LISTEN)
+rpcbind     685            _rpc    4u  IPv4  17890      0t0  TCP *:sunrpc (LISTEN)
+rpcbind     685            _rpc    6u  IPv6  17891      0t0  TCP *:sunrpc (LISTEN)
+systemd-r   687 systemd-resolve   14u  IPv4  24694      0t0  TCP localhost:domain (LISTEN)
+systemd-r   687 systemd-resolve   16u  IPv4  24696      0t0  TCP localhost:domain (LISTEN)
+cupsd      5583            root    7u  IPv6  70007      0t0  TCP ip6-localhost:ipp (LISTEN)
+cupsd      5583            root    8u  IPv4  70008      0t0  TCP localhost:ipp (LISTEN)
+sshd      12927            root    3u  IPv6 214824      0t0  TCP *:ssh (LISTEN)
+
+Sorry, it appears the documenation became inaccurate once we added /etc/systemd/system/ssh.service.d/00-socket.conf.  If you remove this file (or rename it to be inactive) and then run the other two commands, it works as expected.  Opened 
+https://bugs.launchpad.net/ubuntu/+source/openssh/+bug/2017434
+ to track resolution of the documentation bug.
+
+Sorry if I’m missing the obvious, but documentation in Ubuntu in general is so terrible to find…
+
+After changing the port in /etc/systemd/system/ssh.socket.d, what do I need to do to make it take effect ? (without rebooting the machine that is)
+
+According to 
+/usr/share/doc/openssh-server/README.Debian.gz
+ (again, documetnation is spread everywhere, it’s hours to find anything), to make it pick up on the new address should require 
+systemctl daemon-reload
+.
+
+Except it doesn’t work … nothing I do seems to make it listen to my selected port 
+
+Disabling the system socket thing makes it work:
+
+systemctl disable --now ssh.socket
+systemctl enable --now ssh.service
+
+Now it is listening to the new port.
+
+A bit more searching and 
+this stack overflow question
+ answered it:
+
+I needed to add and extra “ListenAddress=” line, with an empty address !? Yes … those undocumented mysteries … But then it works.
+
+Breaks SSH access for anyone using 
+/etc/ssh/sshd_config
+ on Ubuntu 22.10, 23.04, 23.10…
+
+RIP those who block Port 22. Hope ya’ll had backups or physical access. 
+
+@vorlon
+
+NEEDS to be added to the OP… make this google-able.
+
+To go back to previous SSH behavior:
+
+sudo rm /etc/systemd/system/ssh.service.d/00-socket.conf
+
+systemctl disable --now ssh.socket
+
+systemctl enable --now ssh.service
+
+sudo systemctl daemon-reload
+
+sudo systemctl restart ssh
+
+Thanks"
+kb_discourse_20268,"QUESTION: How to compile kernel in ubuntu 20.04
+STEP 1: FIRST TYPE IN TERMINAL : sudo nano /etc/default/grub
+
+where nano is your TEXT editor
+
+STEP2: INCREASE GRUB_TIMEOUT TO 10 WHICH DETERMINES YOUR BOOTING TIME
+
+press ctrl+o and enter to save the file and then ctrl+x to exit.
+
+STEP 3. type: sudo update-grub  to update the changes.
+
+STEP 4:  TYPE: uname -r  to show the kernel version installed in your computer . OR uname -a all about it
+
+STEP 5: GO TO  
+www.kernel.org
+  and download the stable or longterm release (tarball version)  it is highly recommanded to download the stable or longterm versions .
+
+STEP6.GO TO  your downloaded KERNEL FOLDER( WE ASSUME THAT THE FOLDER IS IN /Downloads/)
+
+STEP7. type:  cd ~/Downloads/  in terminal and type mkdir linux_kernel
+
+STEP8. EXTRACT THE .tar file there (in the linux_kernel folder )
+
+STEP9. TYPE : sudo apt-get install build-essential gcc bc bison flex libssl-dev libncurses5-dev libelf-dev
+
+to install dependencies gcc is the c compiler  flebx is lexical analyzer and bison is parser.
+
+STEP10. type:  cp /boot/config-$(uname -r)  ./. config  to provide support a wide range of hardware by copying the .config file.
+
+STEP 11. type make localmodconfig   it will ask u questions about the new drivers  and support of kernel  keep pressing enter to set all the answers of the questions to default or u may search google for answering this.you have to type this command in /Downloads/linux_kernel folder otherwise the method will not work…
+
+IF U KNOW WHAT THE KERNEL MODULE IS ABOUT THEN U MAY ANSWER THIS …
+
+or…
+
+The Linux kernel build-system provide many build targets, the best way to know about it is probably to do a make help:
+
+Configuration targets:
+
+config      - Update current config utilising a line-oriented program
+
+nconfig         - Update current config utilising a ncurses menu based program
+
+menuconfig      - Update current config utilising a menu based program
+
+xconfig     - Update current config utilising a QT based front-end
+
+gconfig     - Update current config utilising a GTK based front-end
+
+oldconfig   - Update current config utilising a provided .config as base
+
+localmodconfig  - Update current config disabling modules not loaded
+
+localyesconfig  - Update current config converting local mods to core
+
+silentoldconfig - Same as oldconfig, but quietly, additionally update deps
+
+defconfig   - New config with default from ARCH supplied defconfig
+
+savedefconfig   - Save current config as ./defconfig (minimal config)
+
+allnoconfig     - New config where all options are answered with no
+
+allyesconfig    - New config where all options are accepted with yes
+
+allmodconfig    - New config selecting modules when possible
+
+alldefconfig    - New config with all symbols set to default
+
+randconfig      - New config with random answer to all options
+
+listnewconfig   - List new options
+
+olddefconfig    - Same as silentoldconfig but sets new symbols to their default value
+
+kvmconfig   - Enable additional options for guest kernel support
+
+tinyconfig      - Configure the tiniest possible kernel
+
+what i have written above is a list of all kernel compiling policies .
+
+STEP 12:TYPE:  make -j4 deb-pkg  where  4 is the number of cores/thread of your processor u want to give the kernel compiling process … now take a cofee mug in your hand wait for half of an hour or 40-50 mins acconding to your proceesors quality. the command will make a .deb file of your compiled kernel.
+
+STEP 13: Type: sudo dpkg -i linux-*.deb it will install the compiled .deb package in your system.
+
+STEP 14: Type: sudo  update-grub to update grub of your system .
+
+STEP15: NOW REBOOT AND YOU WILL SEE YOUR COMPILED KERNEL IN GRUB MENU. ENJOY YOUR OWN KERNEL.
+
+FOR YOUR HELP I  THINK THIS VIDEO WILL BE HELPFUL
+
+https://youtu.be/E4yRcmQqvWM
+
+’
+
+IF U DO NOT WANT TO COMPILE KERNEL JUST INSTALL THE KERNEL THEN YOU CAN SEARCH FOR   linux-headers  and linux-image packages by running apt-cache search
+
+and then update your grub by sudo update-grub
+
+There  is another way to do it. You can install .deb packages of kenel and linux-headers
+
+then run STEP 13  AND STEP  14
+
+ANSWERS:
+after step 12: I have got below files in my /Downloads folder and the I fallowed the step 13 with “sudo dpkg -i linux-mage-5.10.34-dbg_5.10.34-1_amd64.deb” command.
+
+But after reboot I didn’t see my new kernel image in my /boot folder.
+
+Can you help with this to me?
+
+linux-headers-5.10.34_5.10.34-1_amd64.deb
+
+linux-image-5.10.34_5.10.34-1_amd64.deb
+
+linux-image-5.10.34-dbg_5.10.34-1_amd64.deb
+
+linux-libc-dev_5.10.34-1_amd64.deb
+
+After running 
+sudo dpkg -i linux-*.deb
+, you’ll need to run 
+sudo update-grub
+.
+
+I have updated the grub 
+
+but still there is no 5.10.34 kernel in my /boot
+
+go 
+https://launchpad.net/ubuntu/+source/linux/
+
+wget https://launchpad.net/ubuntu/+archive/primary/+sourcefiles/linux/5.11.0-25.27/linux_5.11.0.orig.tar.gz
+wget https://launchpad.net/ubuntu/+archive/primary/+sourcefiles/linux/5.11.0-25.27/linux_5.11.0-25.27.diff.gz
+cd
+rm -rf ubuntucustom
+mkdir ubuntucustom
+cd ubuntucustom
+tar xzf ../linux_5.11.0.orig.tar.gz
+cp ../linux_5.11.0-25.27.diff.gz ./
+gunzip *.diff.gz
+cd linux-5.11
+patch -p1 < ../linux_*.diff
+cp /boot/config-`uname -r` .config
+yes """" | make oldconfig
+make clean
+make -j `getconf _NPROCESSORS_ONLN` deb-pkg LOCALVERSION=-25.27custom
+
+Ok sir ! Thank You ! I forgot to write it
+
+Hi,
+
+I have met below errors, do you know how to fix this?
+
+make[2]: *** [debian/rules:7: build-arch] Error 2
+dpkg-buildpackage: error: debian/rules binary subprocess returned exit status 2
+make[1]: *** [scripts/Makefile.package:77: deb-pkg] Error 2
+make: *** [Makefile:1576: deb-pkg] Error 2
+
+Note that i have already change the SAFETY_TRUSTED_KEYS to “”, didn’t help.
+
+The build tools are all have been installed,
+
+bc is already the newest version (1.07.1-2build1).
+bison is already the newest version (2:3.5.1+dfsg-1).
+flex is already the newest version (2.6.4-6.2).
+gcc is already the newest version (4:9.3.0-1ubuntu2).
+gcc set to manually installed.
+libelf-dev is already the newest version (0.176-1.1build1).
+libncurses5-dev is already the newest version (6.2-0ubuntu2).
+build-essential is already the newest version (12.8ubuntu1.1).
+libssl-dev is already the newest version (1.1.1f-1ubuntu2.8).
+
+Thanks a lot for help.
+
+Exactly the same issues here. Curious if you found a solution.
+
+there are errors in the guide
+
+at least from step 7
+
+STEP7. type: cd ~/Downloads/ in terminal and type mkdir linux_kernel
+
+STEP8. EXTRACT THE .tar file there (in the linux_kernel folder )
+
+STEP9. TYPE : sudo apt-get install build-essential gcc bc bison flex libssl-dev libncurses5-dev libelf-dev
+
+to install dependencies gcc is the c compiler flebx is lexical analyzer and bison is parser.
+
+STEP10. type: cp /boot/config-$(uname -r) ./. config to provide support a wide range of hardware by copying the .config file.
+
+STEP 11. type make localmodconfig
+
+It is not clear what should be done, besides they make mistakes, which for a novice kills the spirit of compiling a kernel. sorry my english is bad
+
+I do it like this:
+
+STEP7. cd ~/Downloads/
+
+name@ubuntu:~/Downloads$
+
+STEP8. name@ubuntu:~/Downloads/linux_kernel$ tar -xf /home/name/Downloads/linux-5.16.2.tar.xz
+
+…
+
+STEP10. type: cp /boot/config-$(uname -r) ./.config
+
+the file: .config it will stay in the folder: /Downloads/linux_kernel/.config
+
+and it should be in the folder: /Downloads/linux_kernel/linux-5.16.2/.config
+
+that’s why the command: make localmodconfig
+
+it will work if it is done in the folder: /Downloads/linux_kernel/linux-5.16.2
+
+For me it worked with 
+make localmodconfig
+ in step on ubuntu 20.04. Thank you for this wonderful guide!
+
+A post was split to a new topic: 
+Wifi failed after compiling
+
+root@ziomario-Z390-AORUS-PRO:/usr/src/linux-source-6.5.0/linux-source-6.5.0# make
+
+…
+
+CC [M]  ubuntu/ubuntu-host/ubuntu-host.mod.o
+
+LD [M]  ubuntu/ubuntu-host/ubuntu-host.ko
+
+BTF [M] ubuntu/ubuntu-host/ubuntu-host.ko
+
+CALL    scripts/checksyscalls.sh
+
+DESCEND objtool
+
+INSTALL libsubcmd_headers
+
+DESCEND bpf/resolve_btfids
+
+INSTALL libsubcmd_headers
+
+CHK     kernel/kheaders_data.tar.xz
+
+Kernel: arch/x86/boot/bzImage is ready  (
+#2
+)
+
+Reading from here :
+
+How to compile kernel in ubuntu 20.04
+ 
+Contribute
+
+    STEP 1: FIRST TYPE IN TERMINAL : sudo nano /etc/default/grub 
+where nano is your TEXT editor 
+STEP2: INCREASE GRUB_TIMEOUT TO 10 WHICH DETERMINES YOUR BOOTING TIME 
+press ctrl+o and enter to save the file and then ctrl+x to exit. 
+STEP 3. type: sudo update-grub  to update the changes. 
+STEP 4:  TYPE: uname -r  to show the kernel version installed in your computer . OR uname -a all about it 
+STEP 5: GO TO  
+www.kernel.org
+  and download the stable or longterm release (tarball version)  it is highly…
+  
+
+he says to do this :
+
+root@ziomario-Z390-AORUS-PRO:/usr/src/linux-source-6.5.0/linux-source-6.5.0# make -j4 deb-pkg
+
+GEN     debian
+
+error: creating source package requires git repository
+
+What’s the next command to install the recompiled kernel or better to produce a deb package ?"
+kb_discourse_20000,"QUESTION: Landscape-package-changer segfaulting with new apt update
+Hi folks,
+
+I’m noticing landscape-package-changer segfaulting ever since the below updates were installed.  Its stopping me from applying package profiles and installing any new updates.
+
+Upgrade package apt 1.6.12ubuntu0.1 to 1.6.12ubuntu0.2
+Upgrade package apt-utils 1.6.12ubuntu0.1 to 1.6.12ubuntu0.2
+Upgrade package curl 7.58.0-2ubuntu3.10 to 7.58.0-2ubuntu3.12
+Upgrade package libapt-inst2.0 1.6.12ubuntu0.1 to 1.6.12ubuntu0.2
+Upgrade package libapt-pkg5.0 1.6.12ubuntu0.1 to 1.6.12ubuntu0.2
+Upgrade package libcurl3-gnutls 7.58.0-2ubuntu3.10 to 7.58.0-2ubuntu3.12
+Upgrade package libcurl4 7.58.0-2ubuntu3.10 to 7.58.0-2ubuntu3.12
+Upgrade package python-apt-common 1.6.5ubuntu0.3 to 1.6.5ubuntu0.4
+Upgrade package python3-apt 1.6.5ubuntu0.3 to 1.6.5ubuntu0.4
+
+The segfault message i’m getting is this, which seems to indicate a problem with python3-apt or libapt-inst. Unfortunately the previous versions are not available for me to downgrade to.
+
+    landscape-packa[23874]: segfault at 28 ip 00007f249730cadf sp 00007ffeedef6d90 error 6 in apt_inst.cpython-36m-x86_64-linux-gnu.so[7f2497307000+a000]
+
+Has anyone else seen this, or know of a fix?
+
+Cheers
+
+ANSWERS:
+Thanks for the heads up. It might be worth filing a bug on this here: 
+https://bugs.launchpad.net/landscape-client/+bugs
+
+I’ve not seen anything currently on this but we can see how to move it forward from there.
+
+I believe that this was fixed in 
+https://ubuntu.com/security/notices/USN-4668-3
+, which went out earlier today.
+
+Manually upgraded a couple of machines to this version and it seems good now - will push out the rest of the upgrades through a script. Thanks!"
+kb_discourse_43133,"QUESTION: [Spec] Kernel Accessories Seed and Metapackage
+Index
+
+US094
+
+Title
+
+Kernel Accessories Seed and Metapackage
+
+Status
+
+Pending Review
+
+Author
+
+Robie Basak
+
+Type
+
+Standard
+
+Created
+
+2023-02-02
+
+Abstract
+
+We want the default set of packages installed on an Ubuntu system to vary depending on whether the substrate contains a kernel or not. We introduce a new kernel-accessories seed and metapackage to abstract a list of default packages for installers and image generators to use.
+
+Rationale
+
+In 
+FO147
+, we want to make bpftrace and bpfcc-tools available by default on most Ubuntu systems. Normally, we would just add these to a suitable seed, such as standard or server. But lxd images contain no kernel, are generated from these seeds, and adding these packages would result in unnecessary image size bloat. We assume that BPF-related tooling would only make sense on a host, unless in a specially privileged container that has been prepared specifically for such use. This means it would be inappropriate for us to add BPF-related tooling to lxd images by default.
+
+It seems inappropriate to special case these packages in every installer and image generator, so instead we will use a metapackage driven by a new seed.
+
+Specification
+
+From Noble onwards:
+
+We shall introduce a new seed called kernel-accessories, and a new metapackage derived from it.
+
+An appropriate kernel metapackage from src:linux-meta shall Recommend the kernel-accessories metapackage.
+
+The seed shall be defined as “packages that should be installed by default when a kernel is installed by default”. The initial set of packages in this seed shall be defined by 
+FO147
+.
+
+Packages added to this seed (whether now or in the future) should not ship any services that are enabled by default.
+
+Further Information
+
+Implementation mechanism
+
+Implementation requires addition of the Recommends to src:linux-meta only, as specified above. This will cause the metapackage to be pulled in automatically both on fresh installations and on release upgrades.
+
+Deployments which do not include Recommends by default, such as cloud-minimal, will not pull in this metapackage. This is the desired behaviour.
+
+Rationale for metapackage
+
+Using a metapackage that connects to the rest of the dependency tree from the existing kernel metapackage means that users’ systems will automatically maintain the set of packages we wish to pull in, over this and future release upgrades, without any further mechanism that needs to be implemented.
+
+In more detail: as we change the set of “kernel accessory” packages over multiple distribution releases in the future, we would like users to stay “in sync” with this set unless they opt out of this management. This allows us to prevent skew between a fresh Ubuntu installation in a given release and an Ubuntu installation that has been release-upgraded up to it. By using a Recommends from the kernel metapackage, we further gain consistency even within the release that first introduces this metapackage without needing a quirk in ubuntu-release-upgrader to handle the upgrade path.
+
+Alternate deployment mechanism
+
+Instead of using Recommends from the existing kernel metapackage, we might have arranged for installers and image generators to separately pull in the metapackage at the time of installing a kernel. This would also allow for differentiation based on installer type, such as if we had wanted to make this package server-specific. However, this would have needed separate implementation in a variety of places, release upgrade quirks to “catch up” from older releases would have been required.
+
+Further, differentiation between server and desktop images has been indicated by product management as undesirable. It is preferable for default behaviour to match unless there is a good reason to avoid this, so that users familiar with one environment can be automatically familiar with the other. Image size difference wasn’t considered to be large enough to warrant differentiation.
+
+Other candidate packages for this new seed
+
+It might make sense in the future to move more packages into this new seed. However, such potential changes are deferred for now. Some packages that are currently seeded in the server, including in container images, have been proposed as candidates for these future changes, if they make sense to install by default if and only if a kernel is installed by default:
+
+lvm2
+
+multipath-tools, though the systemd unit at least prevents that for running by default in containers so the benefit would be strictly about size
+
+Image and Deployment Size Implications
+
+Actually using this new metapackage has an implication of increased image size and installation size. This is really a matter for the separate spec that will define what packages will be added and consider those trade-offs, and are out of scope of this spec. However, in the decisions taken in this spec, we narrow our opportunity to differentiate based on image type (eg. Desktop vs. Server) and it is reasonable to consider whether this is appropriate. Product management has indicated that this is acceptable."
+kb_discourse_67909,"QUESTION: Ubuntu 24.04 unattended-upgrades failed to restart nginx
+Today unattended-upgrades upgraded libc6 and restarted all services using it.
+
+I don’t want to discuss whether unattended-upgrades should or should not restart services, I will go with whatever Ubuntu 24.04’s default behavior is.
+
+I just want to initiate a discussion on how to prevent nginx from failing to restart again.
+
+This is what happened:
+
+# tail /var/log/apt/history.log
+
+Start-Date: 2025-09-23  06:09:19
+Commandline: /usr/bin/unattended-upgrade
+Upgrade: libc6:amd64 (2.39-0ubuntu8.5, 2.39-0ubuntu8.6), locales:amd64 (2.39-0ubuntu8.5, 2.39-0ubuntu8.6), libc-dev-bin:amd64 (2.39-0ubuntu8.5, 2.39-0ubuntu8.6), libc-bin:amd64 (2.39-0ubuntu8.5, 2.39-0ubuntu8.6), libc-devtools:amd64 (2.39-0ubuntu8.5, 2.39-0ubuntu8.6), libc6-dev:amd64 (2.39-0ubuntu8.5, 2.39-0ubuntu8.6)
+End-Date: 2025-09-23  06:09:31
+
+Needrestart triggered service restarts
+
+# less /var/log/unattended-upgrades/unattended-upgrades-dpkg.log
+
+Restarting services...
+ /etc/needrestart/restart.d/systemd-manager
+ systemctl restart cron.service nginx.service ssh.service systemd-journald.service systemd-resolved.service
+Job for nginx.service failed because the control process exited with error code.
+See ""systemctl status nginx.service"" and ""journalctl -xeu nginx.service"" for details.
+
+nginx failed to restart with this error
+
+# systemctl status nginx.service 
+× nginx.service - A high performance web server and a reverse proxy server
+     Loaded: loaded (/usr/lib/systemd/system/nginx.service; enabled; preset: enabled)
+     Active: failed (Result: exit-code) since Tue 2025-09-23 06:09:12 CEST; 2h 9min ago
+   Duration: 6d 11h 15min 10.745s
+       Docs: man:nginx(8)
+        CPU: 53ms
+
+Sep 23 06:09:12 server nginx[2416442]: 2025/09/23 06:09:12 [emerg] 2416442#2416442: host not found in upstream ""ec2-3-120-6-158.eu-central-1.compute.amazonaws.com:8000"" in /etc/nginx/sites->
+Sep 23 06:09:12 server nginx[2416442]: nginx: configuration file /etc/nginx/nginx.conf test failed
+Sep 23 06:09:12 server systemd[1]: nginx.service: Control process exited, code=exited, status=1/FAILURE
+Sep 23 06:09:12 server systemd[1]: nginx.service: Failed with result 'exit-code'.
+Sep 23 06:09:12 server systemd[1]: Failed to start nginx.service - A high performance web server and a reverse proxy server.
+
+The upstream host DOES EXIST and IS RESOLVABLE.
+
+The problem was, I assume, that systemd-resolved.service and nginx.service were restarted at the same time.
+
+The fix, in this case, was easy, I just restarted nginx manually while systemd-resolved was running.
+
+Unfortunately this caused production outage, not mentioning that all our maxscale, elasticsearch, mariadb, keepalived, etc… services were restarted as well. I am not going to comment on that, and I am glad we have not migrated our RabbitMQ cluster to Ubuntu 24.04 yet…
+
+Since Ubuntu 24.04 defaulted to restarting all affected services after unattended-upgrade does a library upgrade, is it at least possible to restart them one by one? Or restart all systemd- services prior the non-systemd services?
+
+Thanks,
+
+Oskar
+
+ANSWERS:
+BTW, I really appreciate these two docs
+
+https://documentation.ubuntu.com/server/how-to/software/automatic-updates/
+
+`needrestart` changes in Ubuntu 24.04: service restarts
+
+They explain very well how unattended-upgrades and needrestart behave in Ubuntu 24.04. And thanks to them I know how to exclude nginx.service from being restarted (or how to go back to the old needrestart behavior altogether)
+
+But what if I decide to go with the Ubuntu 24.04 server defaults? I might end up with not running nginx…
+
+Sorry about this problem. An outage is definitely a bad thing.
+
+Let’s unpack this into a few topics and see what options are available.
+
+unattended-upgrades
+
+It can be configured to not apply certain updates, and perhaps for your use case, glibc should be in that list. The documentation is at 
+https://documentation.ubuntu.com/server/how-to/software/automatic-updates/
+
+needrestart
+
+I found this discourse post, linked from the README.Ubuntu file in the package: 
+`needrestart` changes in Ubuntu 24.04: service restarts
+. This talks about the change in behavior introduced in 24.04 about automatic service restarts.
+
+In particular, this talks about how to configure it to prevent restarting single services: 
+`needrestart` changes in Ubuntu 24.04: service restarts
+
+nginx
+
+Perhaps it could treat an unresolvable name as a non-fatal error in its configuration check? But maybe in your case, if the name, 
+at that time
+, is indeed unresolvable, then it would fail to start for real.
+
+Bugs
+
+In the end, regardless of the reason, what happened is that your service failed while an update was being applied. Maybe the less intrusive fix would be to not attempt restarts after a glibc security update, or block glibc from getting automatic security updates. There are pros and cons. An outage is definitely a con, but we also have to think about the generic case in Ubuntu.
+
+Perhaps file a bug against glibc, since its update is what started this all, and the developers can go from there to see what’s the best way to handle this scenario in a generic way.
+
+For your specific case, I suggest, for now, to investigate the alternatives I listed above, particularly in unattended-upgrades and needrestart configuration options."
+kb_discourse_62353,"QUESTION: Help Wiki contribution blocked – duplicate section and invalid links in NetworkManager page
+Hi everyone,
+
+I noticed that the 
+NetworkManager help wiki page
+ has a 
+duplicate section
+ and 
+two invalid links
+, and I’d really like to help fix it.
+
+I followed the official 
+WikiGuide
+ and created a Launchpad account, then applied to join the 
+ubuntu-wiki-editors
+ Launchpad team as instructed. The page mentioned that a confirmation email would be sent within a few days, but unfortunately, it’s now been almost 
+three months
+, and I still haven’t received approval or any follow-up.
+
+My main goal is to contribute constructively and help maintain documentation that has helped me—and many others—for years. I’d also love to have the experience and credit of helping improve Ubuntu documentation.
+
+Is there any way I can:
+
+Propose the fix (maybe submit a patch or diff)?
+
+Escalate or follow up on the Launchpad team join request?
+
+Get temporary edit access or collaborate with someone who has access?
+
+Thanks in advance for any guidance you can provide. I’m very motivated to contribute and be part of the ecosystem that’s already given me so much.
+
+Best regards,
+
+Armon
+
+ANSWERS:
+Hi Armon,
+
+I’m Ian, a fellow Ubuntu volunteer.
+
+First, we’re going into a weekend, so pinging the right admin person might not be answered until they are back in the office, but let’s do that anyway first. (ping 
+@Community-Team
+)
+
+They are very nice.
+
+Second, sorry you didn’t get a response. I do happen to have wiki-editing permission. So if you steer me to the right place and what the correction should look like, I will happily be your hands for this fix.
+
+Cheers,
+
+Ian
+
+I’ll just add some additional details, that I don’t know if is known or not…
+
+the current wiki we have may no longer exist in six months; with data being moved as was documented 
+here
+ and in a recent 
+UWN
+ (
+UWN link just gives a summary & sends you to first link anyway; what Ubuntu Weekly Notice does
+)
+
+due to expected retirement of current docs, I will suggest you explore newer options, esp. if you'd like to contribute more to documentation; alas that doesn't help current fix right now
+
+The current page [code] you linked, I’ve posted at the pastebin 
+Ubuntu Pastebin
+   Whilst there is a ‘view raw’ option which should show this detail; I’m not sure if all options appear when you’re not a wiki-editor; which is why I’ve provided a pastebin of it.
+
+That pastebin detail I hope is useful in indicating what change(s) you want to make.
+
+Thank you for trying and offering to contribute, and making Ubuntu better.
+
+@pourpasand
+ I approved your request to join wiki editors. Thanks 
+@ian-weisser
+ for the ping!
+
+@ilvipero
+
+Thank you so much for approving my request and giving me access!
+
+I’ve already made the necessary edits, and I hope they’re helpful to the community. Here’s the diff link for the changes I made:
+
+ 
+Diff for ""NetworkManager"" - Community Help Wiki
+
+I’m excited to be part of the wiki editors group and look forward to contributing more in the future.
+
+Thank you for this contribution to the community!
+
+Very much appreciated
+
+@guiverc
+
+Thank you for the clarification and for sharing the pastebin version  that’s very helpful.
+
+Also, I really appreciate the heads-up about the future of the current wiki and the new direction for documentation. I wasn’t aware of that change, so I’ll definitely look into contributing through the newer platform going forward.
+
+Thanks again for your support and for encouraging community contributions!
+
+Hi Armon,
+
+I’m sorry to hear you’ve been waiting so long to join the ubuntu-wiki-editors team—that must be frustrating! Your enthusiasm for fixing the NetworkManager page is awesome, and it’s great to see your dedication to improving Ubuntu’s documentation. For your questions, I’d suggest posting the specific changes (like a patch or diff) directly in this thread or on the Ubuntu documentation mailing list to get feedback from active maintainers. For the Launchpad team join issue, you could try reaching out to the Ubuntu Documentation Team via their mailing list or on the Ubuntu Community Hub to nudge someone to review your request. Collaborating with an existing editor might also work—maybe share your proposed fixes here, and someone with access could help apply them.
+
+Have you tried contacting anyone directly from the Ubuntu Documentation Team yet, or is this thread your first step?"
+kb_discourse_73765,"QUESTION: Ubuntu Server Gazette - Issue 10 - The unbelievable number of supported kernels in Ubuntu
+This issue of the Gazette started when a coworker told me he only realized Canonical does our own backports after he joined the company… From there, more questions came up and were answered, so I wanted to explain everything you might have wanted to know about the Linux kernel in Ubuntu. We’ll start with how many supported kernels there are and why, and then add a few further related topics - like how to know which kernel version contains a specific patch. Thanks for reading!
+
+How many?
+
+The current number of supported 
+Ubuntu kernel sources
+ (not even including the ones in the ongoing development series) is … drumroll …
+
+So there are 2 then, the normal and hardware enablement kernel - right?
+
+No!
+
+Ah ok, so maybe like 25 with hardware specific kernels?
+
+No!
+
+How about 42, because it is the answer anyway?
+
+No comment, but bonus points.
+
+Wow really, so maybe 75 accounting for the different releases?
+
+No!
+
+There are a whopping 163 supported variants of them right now!
+
+163 !!!
+
+The 
+kernel series information file
+ lists all kernels and their repo locations, even if the 
+repositories
+ of a few might be private. Some kernels there have codenames, others are well recognizable. Mostly, there are a lot of them 
+
+163 is an impressive number, but why are there so many?
+
+Why so many?
+
+A look at how Ubuntu supports Linux kernels for 15 years
+
+a.k.a scaling by time due to long-term support
+
+The Linux kernel is a central component of Ubuntu, so it needs bug and security fixes for a long time.
+
+Recently, 
+15 years of coverage with Ubuntu Legacy was announced
+, implying that all still-active LTS releases of the last 15 years, as well as recent interim releases, will receive this coverage. At the time of writing, that would be 14.04, 16.04, 18.04, 20.04, 22.04, 24.04 - and a shorter time for active interim releases 25.04, 25.10 - and the current development release that will become 26.04. This keeps growing over time.
+
+How does Ubuntu provide kernel updates for longer than a 
+kernel.org
+-kernel gives you?
+
+Simple: 
+We do the kernel patch backporting ourselves.
+
+That’s why stable Ubuntu kernel versions are named x.y.0-ABI instead of 
+kernel.org
+’s stable names x.y.
+z
+.
+
+Linux kernel development generally happens on 
+kernel.org
+, and from there, a kernel base version is picked when an Ubuntu release is drafted:
+
+We pick 
+an upstream kernel before its release
+ (and follow upstream updates until it is finalized) to ensure you get the latest upstream kernel version right when a new Ubuntu version is released.
+
+From then on, the Ubuntu team backports relevant patches and stable fixes from 
+kernel.org
+, or develops Ubuntu-specific ones.
+
+We do this because we do not generally base our kernels on upstream’s stable releases, since even a release denoted “stable” with long term support from 
+kernel.org
+ won’t receive updates for 15 years.
+
+This means Ubuntu maintains its own stable kernels with cherry-picked patches.
+
+Each Ubuntu kernel is released as creating x.y.0-ABI.
+
+In this context, 
+ABI
+ in a Ubuntu kernel version represents the tracking of exported functions via the kernel team’s build system. An ABI version over a thousand usually indicates a derivative kernel (more below). The kernel team starts them at 1000 to avoid ABI version clashes with the -generic/-hwe kernels, which start at 1 and usually grow to a couple of hundreds over their lifetime.
+
+But not all patches originate from upstream.
+
+Additionally, Ubuntu might include patches that are not included in the 
+kernel.org
+ trees, either because the patch hasn’t been pulled in, or because it is obtained from other non-upstream sources and is unlikely to be upstreamed – we call that the “
+Sauce
+”.
+
+More features and drivers are sometimes provided by  
+out of tree driver modules
+ to ensure, for example, that 
+ZFS
+ works fine.
+
+Okay, this explains only 10-ish of our active 163 kernel releases, why are there more?
+
+A look at how Ubuntu supports many different platforms
+
+a.k.a scaling by derivatives
+
+There is a balance to strike. Ideally everyone would have their very own kernel optimized for their platform, their use case and their needs. But it is hard to support the many kernel variants we have – let us not make them millions of variants yet. On the other hand, saying “you all shall work with the very same kernel” is wasting too much potential.
+
+“Works well everywhere”
+
+The most common standard kernel is called “linux-generic” and that is a great balancing act for the needs of everyone. It comes with defaults that work well in almost all cases, but these defaults are not optimized for any scenario that would mostly come at the cost of other use cases.
+
+“Optimized for platforms”
+
+Starting from the generic kernels, there are optimized or opinionated kernels, again by modifications and configurations, to be better where the substrate they run on or the use-case they will be serving is known.
+
+Some are optimized to provide 
+feature support and optimization for clouds
+, while others are optimized for a particular hardware variant like different RISC-V models, or developer boards. Or the common case of the (usually) pre-installed 
+OEM kernels
+ to enable/optimize for the hardware of a particular device, if it is not yet supported by the generic kernel.
+
+“Optimized for special requirements”
+
+There are further use cases which need to modify or configure the kernel in a way that is detrimental to other users. Therefore, this isn’t just done on the kernel used by everyone. Instead those become derivative kernels, mostly based on the LTS kernels but with individual changes on top and their own set of verifications.
+
+Rather well known examples of that would be the 
+FIPS kernels
+ for those under regulations that require this kind of operation. Or, 
+real-time kernels
+ for use cases that need more determinism.
+
+“Optimized for recent hardware and features”
+
+The following scenario is quite a common request. “I’d like to have everything as stable as possible, except this one detail I need”.
+
+Combine enough people saying that and you are faced with the mutually exclusive demand to keep everything stable and to change everything.
+
+One particularly frequent aspect of that is the request for the support of new hardware. But, backporting all the changes would be too disruptive to the existing users that do not need that. This is where the 
+hardware enablement kernel
+ comes into play to extend the 
+Ubuntu kernel lifecycle
+. That again doubles the number of supported kernels. The so-called HWE-kernel is a backport of the kernel of newer Ubuntu releases to the Ubuntu LTS releases. This allows users to get the more recent hardware support and features, while keeping the rest of the OS stable. Thanks to the Linux kernel for being a great abstraction layer to make that possible.
+
+163 or are there even more?
+
+Strictly speaking, all that was mentioned so far is only about the different kernel source packages. A single source can be built for a combination of architectures+flavors. Flavors are built from the same source but with different kernel configs. For instance, the questing/linux generic kernel builds for amd64/arm64/armhf/ppc64el/s390x. Most of these arches have only one flavor, but for example arm64 builds 2 flavors (with 4KB and 64KB page size).
+
+So the actual number of “linux-image-<foo>” packages, for all architectures and flavors, is much higher than that.
+
+But fully counting that would be bragging right … right?
+
+Although I’m not in the kernel team - so it would be praise I guess?
+
+Hey Kernel Team, in case you didn’t know: You are awesome!
+
+All of that allows you to get the best out of your Ubuntu system and then be able to rely on it for a long time!
+
+How to navigate all these kernels
+
+Which kernel contains a certain patch?
+
+a.k.a to not see the fix-forest for all the kernel-trees
+
+Out of all of the above you might have realized that it is quite a challenge to support all users and all variations they might be using, yet this is just what we do.
+
+We often get questions like :
+
+But I only know a particular CVE is fixed upstream in >=6.14.3 and >=6.17, how do I map this to x.y.0-thousands?
+
+I’m looking for a particular fix that was added >=6.15, how could I track if it was or will be applied?
+
+A commit was accepted upstream, in which Ubuntu kernel releases is it included ?
+
+Let us start with the easy mode. If upstream says “6.15 has fixed XYZ”, then any >=6.15.0-ABI will have that fix.
+
+For fixes and feature backports you can 
+proactively file bugs
+ or 
+check those filed by others
+. To do so, you can either look at an individual bug, which will list the release it is targeted at and update the state (per target release) when it is fixed. Furthermore, on the bug you will see regular updates along the process to prepare, test and release these changes via 
+stable release updates
+. These updates happen regularly and you can see the dates of the ongoing and upcoming stable and security updates at 
+https://kernel.ubuntu.com/
+.
+
+Or you can look the other way around, at the changelogs of the linux kernel you are interested in. 
+Changelogs
+ will list the applied changes and refer to bugs for more details.
+
+Luckily CVEs have standardized identifiers, which we map and provide at 
+https://ubuntu.com/security/cves
+, or on your system via the Pro Client’s ability to 
+list
+ and 
+handle
+ vulnerabilities.
+
+And finally, you can go all in on a per-commit level: the option of tracing a change not only via bugs is made possible by the nature of open source - the 
+Ubuntu kernel repositories
+ are public. The SHA1 of backported upstream fixes is referenced in the commit message - to do so the commit usually will get an entry like “([cherry picked|backported] from commit <sha1>)”. With that in mind it is easy to find the change you are looking for even after potential adaptation for the backport.
+
+How to find a particular change
+
+a.k.a tracing the journey of an upstream commit to ubuntu kernels
+
+Imagine you’d have a suspend issue and found it is addressed in 
+bd820906ea9d “platform/x86/intel/pmc: Add Arrow Lake U/H support to intel_pmc_core driver”
+ upstream.
+
+You could find the topic via a web search and spot the bug report 
+https://bugs.launchpad.net/ubuntu/+source/linux/+bug/2112469
+.
+
+Or you can find it mentioned in the changelog like here 
+https://launchpad.net/ubuntu/+source/linux/6.8.0-88.89
+.
+
+Or you go all in, fetch the kernel repositories that are important to you and see where it is referenced:
+
+$ git --no-pager log --all --grep='from commit bd820906ea9d' --pretty='%H %s'
+3b56343cd08a025f3eb632ff145f27d7c3c0ee48 platform/x86/intel/pmc: Add Arrow Lake U/H support to intel_pmc_core driver
+44db804982800348c70c759cd8a5e9e4c976322d platform/x86/intel/pmc: Add Arrow Lake U/H support to intel_pmc_core driver
+
+You now know that in those two commits the change you looked for was mentioned and you can look them up.
+
+But usually, as the next step, you then want to check which exact kernel version(s) this change was added to.
+
+You can use 
+git tag –contains
+ and similar on this as usual probing for these new hashes that you found.
+
+$ git tag --contains 3b56343cd08a025f3eb632ff145f27d7c3c0ee48
+Ubuntu-6.8.0-88.89
+Ubuntu-6.8.0-89.90
+Ubuntu-6.8.0-90.91
+Ubuntu-6.8.0-91.92
+Ubuntu-hwe-6.8-6.8.0-90.91_22.04.1
+Ubuntu-lowlatency-6.8.0-88.89.1
+Ubuntu-lowlatency-6.8.0-90.91.1
+Ubuntu-lowlatency-hwe-6.8-6.8.0-90.91.1_22.04.1
+
+Or, if you need this often, consider an alias or script doing something like:
+
+$ git --no-pager log --all --grep=""from commit bd820906ea9d"" --pretty='%H' | while read -r c; do   echo ""Commit: $c""; echo ""Subject: $(git log -1 --pretty=%s ""$c"")"";   echo ""Message:"";   git log -1 --pretty=format:'  %b' ""$c"" | sed 's/^/  /';   echo ""Branches:"";   git branch --contains ""$c"" --format='  %(refname:short)' 2>/dev/null || echo ""  (none)"";   echo ""Tags:"";   git tag --contains ""$c"" --format='  %(refname:short)' 2>/dev/null || echo ""  (none)"";   echo; done
+Commit: 3b56343cd08a025f3eb632ff145f27d7c3c0ee48
+Subject: platform/x86/intel/pmc: Add Arrow Lake U/H support to intel_pmc_core driver
+Message:
+    BugLink: https://bugs.launchpad.net/bugs/2112469
+  
+  Add Arrow Lake U and Arrow Lake H support in intel_pmc_core driver.
+  
+  Signed-off-by: Rajvi Jingar <rajvi.jingar@linux.intel.com>
+  Signed-off-by: Xi Pardee <xi.pardee@linux.intel.com>
+  Link: https://lore.kernel.org/r/20250207225615.401235-7-xi.pardee@linux.intel.com
+  Reviewed-by: Ilpo Järvinen <ilpo.jarvinen@linux.intel.com>
+  Signed-off-by: Ilpo Järvinen <ilpo.jarvinen@linux.intel.com>
+  (backported from commit bd820906ea9dc3acfcac9de4f1be89b78609e2ac)
+  [thibf: due to a large refactor missing:
+   ac6bef0d5 platform/x86:intel/pmc: Create generic_core_init() for all platforms
+   Duplicate initialization function and update values to reflect arl_h correct state.]
+  Signed-off-by: Thibault Ferrante <thibault.ferrante@canonical.com>
+  Acked-by: Stefan Bader <stefan.bader@canonical.com>
+  Acked-by: Manuel Diewald <manuel.diewald@canonical.com>
+  Signed-off-by: Mehmet Basaran <mehmet.basaran@canonical.com>
+  Signed-off-by: Edoardo Canepa <edoardo.canepa@canonical.com>
+Branches:
+Tags:
+  Ubuntu-6.8.0-88.89
+  Ubuntu-6.8.0-89.90
+  Ubuntu-6.8.0-90.91
+  Ubuntu-6.8.0-91.92
+  Ubuntu-hwe-6.8-6.8.0-90.91_22.04.1
+  Ubuntu-lowlatency-6.8.0-88.89.1
+  Ubuntu-lowlatency-6.8.0-90.91.1
+  Ubuntu-lowlatency-hwe-6.8-6.8.0-90.91.1_22.04.1
+
+Commit: 44db804982800348c70c759cd8a5e9e4c976322d
+Subject: platform/x86/intel/pmc: Add Arrow Lake U/H support to intel_pmc_core driver
+Message:
+    BugLink: https://bugs.launchpad.net/bugs/2112469
+  
+  Add Arrow Lake U and Arrow Lake H support in intel_pmc_core driver.
+  
+  Signed-off-by: Rajvi Jingar <rajvi.jingar@linux.intel.com>
+  Signed-off-by: Xi Pardee <xi.pardee@linux.intel.com>
+  Link: https://lore.kernel.org/r/20250207225615.401235-7-xi.pardee@linux.intel.com
+  Reviewed-by: Ilpo Järvinen <ilpo.jarvinen@linux.intel.com>
+  Signed-off-by: Ilpo Järvinen <ilpo.jarvinen@linux.intel.com>
+  (cherry picked from commit bd820906ea9dc3acfcac9de4f1be89b78609e2ac)
+  Signed-off-by: Thibault Ferrante <thibault.ferrante@canonical.com>
+  Acked-by: Manuel Diewald <manuel.diewald@canonical.com>
+  Acked-by: Edoardo Canepa <edoardo.canepa@canonical.com>
+  Signed-off-by: Mehmet Basaran <mehmet.basaran@canonical.com>
+Branches:
+Tags:
+  Ubuntu-hwe-6.14-6.14.0-37.37_24.04.1
+
+After you have tracked the change you are interested in, you might ask what is the most recent kernel you could get out of the automatic updates?
+
+The easiest way is to check right on the system. You can see the current version and available updates, for example via 
+apt policy
+:
+
+$ apt policy linux-generic linux-generic-hwe-24.04
+linux-generic:
+  Installed: (none)
+  Candidate: 6.8.0-88.89
+  Version table:
+     6.8.0-91.92 100
+        100 http://de.archive.ubuntu.com/ubuntu noble-proposed/main amd64 Packages
+     6.8.0-88.89 500
+        500 http://de.archive.ubuntu.com/ubuntu noble-updates/main amd64 Packages
+        500 http://security.ubuntu.com/ubuntu noble-security/main amd64 Packages
+     6.8.0-31.31 500
+        500 http://de.archive.ubuntu.com/ubuntu noble/main amd64 Packages
+linux-generic-hwe-24.04:
+  Installed: 6.14.0-36.36~24.04.1
+  Candidate: 6.14.0-36.36~24.04.1
+  Version table:
+ *** 6.14.0-36.36~24.04.1 500
+        500 http://de.archive.ubuntu.com/ubuntu noble-updates/main amd64 Packages
+        100 http://de.archive.ubuntu.com/ubuntu noble-proposed/main amd64 Packages
+        500 http://security.ubuntu.com/ubuntu noble-security/main amd64 Packages
+        100 /var/lib/dpkg/status
+     6.8.0-31.31 500
+        500 http://de.archive.ubuntu.com/ubuntu noble/main amd64 Packages
+
+For a check while not on the system, you can refer to the publishing records of the related source package. The base kernels share the same source name “linux / linux-meta” and hence have 
+one publishing history
+ that shows you all of them. If you want instead to check on a particular hardware enablement stream, those are versioned - like for 6.14, you can instead check the publishing history of 
+linux-meta-hwe-6.14
+ for example.
+
+Closing thoughts
+
+I hope this post helps to explain why there are so many active Ubuntu kernel source trees for support and optimization, and makes you realize that Ubuntu does all the backports for them! And if you ever wondered how to find a particular change you are interested in, I hope this post was useful for you too by providing some examples.
+
+Either way - I hope that each reader found something to take away that was just the right thing for them!"

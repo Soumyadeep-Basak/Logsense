@@ -43,3 +43,5 @@ pydantic
 # Optional (nice to have)
 tqdm
 python-dotenv
+requests 
+beautifulsoup4 
