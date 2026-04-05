@@ -1,0 +1,59 @@
+"""Helpers for extracting raw log windows from parsed logs."""
+
+from __future__ import annotations
+
+import pandas as pd
+
+from app.tools._tool_data_loader import load_parsed_logs
+
+
+def get_raw_log_window(
+    start_row: int,
+    end_row: int,
+    process_name: str | None = None,
+) -> list[str]:
+    """Return raw log lines for a row window with optional process-name filtering."""
+    parsed = load_parsed_logs()
+    if parsed.empty:
+        return []
+
+    window = _slice_window(parsed, start_row, end_row)
+    if process_name:
+        process_column = _resolve_process_column(window)
+        if process_column is None:
+            return []
+        window = window[
+            window[process_column].astype(str).str.lower() == str(process_name).lower()
+        ]
+
+    return _extract_text_lines(window)
+
+
+def _slice_window(parsed: pd.DataFrame, start_row: int, end_row: int) -> pd.DataFrame:
+    if "row_id" in parsed.columns:
+        return parsed[(parsed["row_id"] >= start_row) & (parsed["row_id"] <= end_row)]
+    return parsed.iloc[start_row : end_row + 1]
+
+
+def _resolve_process_column(df: pd.DataFrame) -> str | None:
+    for column in ("process", "process_name"):
+        if column in df.columns:
+            return column
+    return None
+
+
+def _extract_text_lines(window: pd.DataFrame) -> list[str]:
+    if window.empty:
+        return []
+    if "logline" in window.columns:
+        return [str(value) for value in window["logline"].fillna("").tolist()]
+
+    for column in window.columns:
+        series = window[column]
+        if pd.api.types.is_string_dtype(series) or series.dtype == object:
+            return [str(value) for value in series.fillna("").tolist()]
+    return []
+
+
+if __name__ == "__main__":
+    print(ascii(get_raw_log_window(0, 5)))

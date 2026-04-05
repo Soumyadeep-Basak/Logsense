@@ -2,46 +2,35 @@
 fastapi
 uvicorn
 
-# Data handling
 pandas
 numpy
 
-# Log processing
 logai; python_version < "3.13"
 
-# LLM orchestration
 langchain
 langgraph
 
-# Embeddings / local models
 sentence-transformers
 
-# Gemini (Google)
 google-generativeai
 
-# Grok (X AI / OpenAI-compatible)
 openai   # used as client for Grok endpoint
 
-# Groq
 groq
 
-# Cohere
 cohere
 
-# Vector + similarity (optional but useful)
 scikit-learn
 
-# Async + HTTP
 httpx
 
-# Environment variables
 python-dotenv
 
-# Validation / schema
 pydantic
 
-# Optional (nice to have)
 tqdm
 python-dotenv
 requests 
 beautifulsoup4 
+rank_bm25 
+mcp
