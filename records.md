@@ -123,3 +123,55 @@ This file is the project work log for this repository.
   Root cause identified from the reported traceback: Cohere dataset validation rejected `kb_embed_input.csv` because the file header did not include `text`.
 - Notes:
   This fix keeps `kb_final.csv` schema unchanged and only alters the intermediate embed-input CSV format to satisfy Cohere.
+
+### 2026-04-07 00:00 IST
+- Prompt:
+  Refine `kb_text` in the knowledge-base workflow using Groq before embedding, shortening unnecessary details without losing important keywords or concepts.
+- Actions:
+  Added a Groq refinement pass inside `app/knowledge_base/kb_embedder.py` before the Cohere embed-input file is built.
+  Kept the KB workflow shape intact so scraper and chunker behavior stay unchanged.
+- Files changed:
+  `app/knowledge_base/kb_embedder.py`
+  `records.md`
+- Files created:
+  None
+- Runs/results:
+  Code updated to compress KB thread text through Groq using the existing Groq env/config values before Cohere embedding.
+- Notes:
+  The refined text replaces `kb_text` only within the embedder workflow, which minimizes impact on the rest of the KB pipeline.
+
+### 2026-04-07 00:00 IST
+- Prompt:
+  Run the knowledge-base pipeline end to end after adding Groq refinement to `kb_text`.
+- Actions:
+  Ran the KB pipeline first with the default `python` interpreter, then reran with the repo virtual environment interpreter.
+  Investigated the final failure state after the venv run.
+- Files changed:
+  `records.md`
+- Files created:
+  None
+- Runs/results:
+  `python -m app.knowledge_base.kb_pipeline`:
+  scraping and chunking succeeded, but embedding failed immediately because that interpreter did not have `groq` installed.
+  `.\.venv\Scripts\python.exe -m app.knowledge_base.kb_pipeline`:
+  scraping and chunking succeeded, Groq refinement and embedding progressed, but the final write failed with `PermissionError: [Errno 13] Permission denied: 'app\\data\\kb_processed\\kb_final.csv'`.
+  Confirmed `app/data/kb_processed/kb_final.csv` exists and is not read-only, so the likely blocker is another process holding the file open.
+- Notes:
+  Current KB intermediate outputs were refreshed during the run: `kb_raw/discourse_threads.json`, `kb_processed/kb_chunks.csv`, and `kb_processed/kb_embed_input.csv`.
+
+### 2026-04-08 00:00 IST
+- Prompt:
+  Add risk contributor feature columns to the chunking pipeline and save the enriched chunk output to `app/data/processed/final.csv`.
+- Actions:
+  Extended `app/preprocessing/chunks.py` to derive chunk-level contributor features from parsed logs and anomaly flags.
+  Added safe timestamp normalization, anomaly flag merging, process frequency reuse, dominant PID detection, template diversity, log density, and normalized recency scoring.
+  Kept `risk_score` uncomputed and empty as requested.
+- Files changed:
+  `app/preprocessing/chunks.py`
+  `records.md`
+- Files created:
+  None
+- Runs/results:
+  Code updated so chunk generation now writes enriched contributor features and mirrors the result to `app/data/processed/final.csv`.
+- Notes:
+  The existing `chunks.csv` flow remains intact while `final.csv` receives the same enriched chunk dataset.

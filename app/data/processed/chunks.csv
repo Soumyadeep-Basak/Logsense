@@ -1,25 +1,25 @@
-chunk_id,start_row,end_row,process_pid,process_name,description,high_level_description,low_level_description
-chunk_1,88,94,30565,sshd,,Multiple authentication attempts and FTP connections occurred on the combo server.,"SSHD experienced an authentication failure from 211.46.224.253, while FTPD logged multiple connections from 24.54.76.216 and 82.252.162.81."
-chunk_2,105,123,31202,sshd,,Multiple SSH authentication failures occurred within a short time frame.,Authentication failures were detected for multiple SSH processes (sshd) with the same rhost (adsl-70-242-75-179.dsl.ksc2mo.swbell.net) and tty (NODEVssh) within 1 second.
-chunk_3,133,139,31277,ftpd,,"Multiple ftpd connections from 82.252.162.81 and a user session were opened and closed, but an unknown user timed out and logrotate exited abnormally.","ftpd logged repeated connections from 82.252.162.81, a user session was opened and closed for user cyrus, and logrotate exited with a non-zero status code."
-chunk_4,142,149,,cups,,System experienced a brief service disruption.,"Cupsd service restarted, and logrotate exited abnormally, but su sessions and syslogd restarted normally."
-chunk_5,164,170,2318,snmpd,,Possible security incident involving unauthorized access attempts.,Anomalous snmpd activity and multiple sshd authentication failures occurred within a short time frame.
-chunk_6,315,336,30934,su,,Multiple SSH authentication failures occurred from a single IP address.,PAM_unix module in sshd reported authentication failures with unknown users and a single rhost (massive.merukuru.org) across multiple processes.
-chunk_7,354,379,32328,ftpd,,Multiple suspicious connections and process restarts occurred on the system.,"Connections from IP addresses 210.118.170.95 and 211.167.68.59 were logged, and processes like cups, syslogd, and logrotate restarted or exited abnormally."
-chunk_8,380,390,8660,sshd,,Multiple authentication failures and log rotation errors occurred on June 27 and 28.,"SSHD experienced authentication failures for user 'root' from 'troi.bluesky-technologies.com' on June 27, while logrotate exited abnormally on both days."
-chunk_9,399,409,12665,sshd,,Multiple authentication failures were detected on the sshd service.,Authentication failures occurred on the sshd service due to repeated pam_unix errors with a single IP address (62-192-102-94.dsl.easynet.nl) attempting to log in as root.
-chunk_10,480,490,15692,sshd,,Multiple authentication failures occurred for root user via SSH.,SSHD process experienced authentication failures for user 'root' from IP address 208.62.55.75 between 12:11:53 and 12:12:03.
-chunk_11,536,583,19272,klogind,,Multiple authentication failures occurred from an unknown source.,Kerberos authentication failed with permission denied and software caused connection abort errors from IP address 163.27.187.39.
-chunk_12,607,622,19643,sshd,,Multiple authentication failures and unexpected process exits occurred on the system.,"Authentication failures occurred for user 'root' from IP 60.30.224.116, and processes 'sshd', 'su', and 'logrotate' exited abnormally."
-chunk_13,656,671,22272,sshd,,Multiple authentication failures occurred on the sshd service.,"Authentication failures for user 'root' from IP address 195.129.24.210, likely due to repeated incorrect login attempts."
-chunk_14,684,760,,logrotate,,Multiple authentication failures and unexpected SSHD connections occurred.,"SSHD experienced authentication failures and unexpected connections from unknown users, while logrotate and other system processes exited abnormally."
-chunk_15,762,774,1583,su,,Multiple authentication failures and unexpected process exits occurred on the system.,"Authentication failures were detected in SSHD (uid=0, euid=0, rhost=210.76.59.29) and logrotate exited abnormally with status [1]."
-chunk_16,792,807,3378,sshd,,Multiple authentication failures occurred for user root from IP 220.117.241.87.,SSHD process experienced repeated authentication failures for user root from IP 220.117.241.87 between 19:15:48 and 19:16:01.
-chunk_17,893,902,2094,gpm,,A potential security incident occurred involving a user session and root login.,"A user session was opened and closed for 'test' by sshd, followed by a root login on tty2, with anomalies detected in gpm and unknown process --."
-chunk_18,1083,1089,,syslogd,,"System restart detected, with potential issues during log rotation.","syslogd restarted, logrotate exited abnormally, and su sessions opened and closed for users cyrus and news."
-chunk_19,1226,1235,31861,sshd,,Multiple authentication failures occurred on the sshd service.,Authentication failures were detected by pam_unix in sshd process with rhost=82.77.200.128 and user=root.
-chunk_20,1240,1246,2803,gdm-binary,,Failed authentication attempts were detected.,"Multiple authentication failures occurred for user 'root' via SSH from IP 211.137.205.253, with GDM also experiencing an authentication failure."
-chunk_21,1823,1834,26463,ftpd,,FTPD service experienced connectivity issues with clients.,getpeername (ftpd) errors and xinetd warnings indicate Transport endpoint is not connected and Connection reset by peer.
-chunk_22,1894,1914,28878,sshd,,Multiple authentication failures and suspicious system activity were detected.,"Authentication failures occurred for user 'root' from IP address 207.243.167.114, and system processes exhibited abnormal behavior, including session openings and closings, and unexpected restarts of services."
-chunk_23,1918,1959,,syslog,,System boot process encountered issues with security framework initialization.,SELinux failed to register due to existing security framework and capability registration failure.
-chunk_24,1960,2000,,random,,System boot process encountered several anomalies during initialization.,"Anomalies occurred during kernel initialization, including unexpected PCI IRQ routing entries, invalid ACPI-PCI IRQ routing table, and failed Plug & Play device detection."
+chunk_id,start_row,end_row,process_name,process_pid,description,anomaly_flag,anomaly_count,pid_count,dominant_pid,process_frequency,is_critical_process,recency_score,log_density,template_diversity,risk_score
+chunk_1,88,94,sshd,30565,,1,1,6,30631,10,1,0.0,7.0,4,
+chunk_2,105,123,sshd,31202,,1,6,11,31198,10,1,0.005470620751196844,19.0,3,
+chunk_3,133,139,ftpd,31277,,1,1,5,31791,3,0,0.007548897459062084,7.0,5,
+chunk_4,142,149,cups,,,1,2,2,2192,1,0,0.03285517824659382,8.0,5,
+chunk_5,164,170,snmpd,2318,,1,1,4,9558,1,0,0.06334404507903335,7.0,6,
+chunk_6,315,336,su,30934,,1,8,11,30934,2,0,0.1842970700841737,22.0,5,
+chunk_7,354,379,ftpd,32328,,1,15,19,945,3,0,0.23394068174232746,26.0,6,
+chunk_8,380,390,sshd,8660,,1,5,7,8269,10,1,0.2591121191840434,11.0,4,
+chunk_9,399,409,sshd,12665,,1,5,11,11512,10,1,0.2768596004093646,11.0,1,
+chunk_10,480,490,sshd,15692,,1,5,11,15562,10,1,0.2928159659181259,11.0,2,
+chunk_11,536,583,klogind,19272,,1,25,26,19272,1,0,0.32708394129334284,48.0,4,
+chunk_12,607,622,sshd,19643,,1,4,12,20298,10,1,0.3356346986003668,16.0,4,
+chunk_13,656,671,sshd,22272,,1,7,15,22112,10,1,0.35728710332611646,16.0,3,
+chunk_14,684,760,logrotate,,,1,42,58,24117,1,0,0.4050726144522943,77.0,8,
+chunk_15,762,774,su,1583,,1,6,10,1583,2,0,0.41934183632755456,13.0,5,
+chunk_16,792,807,sshd,3378,,1,10,16,2842,10,1,0.42603944415417694,16.0,2,
+chunk_17,893,902,gpm,2094,,1,3,6,12527,1,0,0.4898759732456823,10.0,6,
+chunk_18,1083,1089,syslogd,,,1,1,2,26353,1,0,0.5611990747940799,7.0,5,
+chunk_19,1226,1235,sshd,31861,,1,2,10,31851,10,1,0.5859345284589357,10.0,1,
+chunk_20,1240,1246,gdm-binary,2803,,1,1,5,2803,1,0,0.6008217580659911,7.0,5,
+chunk_21,1823,1834,ftpd,26463,,1,6,8,2306,3,0,0.9587982225142372,12.0,4,
+chunk_22,1894,1914,sshd,28878,,1,12,11,30999,10,1,0.9999991262850163,21.0,11,
+chunk_23,1918,1959,syslog,,,1,15,1,1618,1,0,0.9999994175233442,42.0,15,
+chunk_24,1960,2000,random,,,1,19,2,1690,1,0,1.0,41.0,19,

@@ -5,11 +5,15 @@ from __future__ import annotations
 from typing import Any
 
 import pandas as pd
+try:
+    from langchain_core.tools import tool
+except ImportError:  # pragma: no cover - compatibility fallback
+    from langchain.tools import tool
 
 from app.tools._tool_data_loader import load_final
 
 
-def get_recent_incidents(n: int = 1) -> list[dict[str, Any]]:
+def _get_recent_incidents_impl(n: int = 1) -> list[dict[str, Any]]:
     """Return up to n most recent incidents as summary dictionaries."""
     df = load_final()
     if df.empty or n <= 0:
@@ -46,5 +50,17 @@ def _row_to_incident_dict(row: pd.Series) -> dict[str, Any]:
     }
 
 
+@tool
+def get_recent_incidents(n: int = 1) -> list[dict[str, Any]]:
+    """Get the most recent incident chunks from local Logsense data.
+
+    Use this when the LLM needs a quick summary of the latest incidents or wants
+    a starting point for investigation without reading the full dataset.
+    Returns a list of incident dictionaries with chunk id, process details,
+    description, row range, and timestamp when available.
+    """
+    return _get_recent_incidents_impl(n=n)
+
+
 if __name__ == "__main__":
-    print(ascii(get_recent_incidents()))
+    print(ascii(_get_recent_incidents_impl()))

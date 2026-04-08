@@ -3,11 +3,15 @@
 from __future__ import annotations
 
 from typing import Any
+try:
+    from langchain_core.tools import tool
+except ImportError:  # pragma: no cover - compatibility fallback
+    from langchain.tools import tool
 
 from app.tools._tool_data_loader import cosine_similarity, load_final, parse_embedding
 
 
-def get_similar_incidents(
+def _get_similar_incidents_impl(
     chunk_id: str,
     top_k: int = 3,
     min_score: float = 0.75,
@@ -69,5 +73,20 @@ def get_similar_incidents(
     return [payload for _, payload in matches[:top_k]]
 
 
+@tool
+def get_similar_incidents(
+    chunk_id: str,
+    top_k: int = 3,
+    min_score: float = 0.75,
+) -> list[dict[str, Any]]:
+    """Find incidents with embeddings similar to a known incident chunk.
+
+    Use this when the LLM wants historical analogs for the same failure pattern
+    or needs to compare a current incident against related prior incidents.
+    Returns a list of similar incident dictionaries with metadata and similarity score.
+    """
+    return _get_similar_incidents_impl(chunk_id=chunk_id, top_k=top_k, min_score=min_score)
+
+
 if __name__ == "__main__":
-    print(ascii(get_similar_incidents("chunk_0")))
+    print(ascii(_get_similar_incidents_impl("chunk_0")))

@@ -13,6 +13,10 @@ from app.config import (
     COHERE_EMBED_MODEL,
     COHERE_EMBEDDING_TYPE,
     COHERE_REQUEST_DELAY_SECONDS,
+    GROQ_API_KEY_ENV_VAR,
+    GROQ_INCIDENT_DESCRIPTION_MODEL,
+    GROQ_MAX_RETRIES,
+    GROQ_REQUEST_DELAY_SECONDS,
 )
 
 KB_CHUNKS_INPUT_PATH = Path("app/data/kb_processed/kb_chunks.csv")
@@ -23,6 +27,8 @@ KB_EMBED_TEXT_COLUMN = "kb_text"
 KB_EMBED_DATASET_TEXT_COLUMN = "text"
 KB_EMBED_ID_COLUMN = "kb_chunk_id"
 KB_EMBED_METADATA_COLS = ["kb_chunk_id"]
+KB_GROQ_TEXT_MAX_CHARS = 12000
+KB_GROQ_REFINED_TEXT_COLUMN = "kb_text"
 KB_FINAL_OUTPUT_COLUMNS = [
     "kb_chunk_id",
     "kb_source",
@@ -53,6 +59,9 @@ def build_kb_final_with_embeddings(
         missing_ids = final_frame.loc[missing_kb_text, "kb_chunk_id"].tolist()
         raise ValueError(f"kb_text is missing for kb_chunk_id(s): {', '.join(missing_ids)}")
 
+    _kb_load_env()
+    final_frame = _kb_refine_texts_with_groq(final_frame)
+
     embed_input = final_frame[[KB_EMBED_ID_COLUMN, KB_EMBED_TEXT_COLUMN]].rename(
         columns={KB_EMBED_TEXT_COLUMN: KB_EMBED_DATASET_TEXT_COLUMN}
     )
@@ -60,7 +69,6 @@ def build_kb_final_with_embeddings(
     embed_input_path.parent.mkdir(parents=True, exist_ok=True)
     embed_input.to_csv(embed_input_path, index=False)
 
-    _kb_load_env()
     api_key = os.getenv(COHERE_API_KEY_ENV_VAR)
     if not api_key:
         raise RuntimeError(f"Missing {COHERE_API_KEY_ENV_VAR} in environment.")
@@ -115,6 +123,139 @@ def _kb_normalize_chunks(chunks: pd.DataFrame) -> pd.DataFrame:
         frame[column] = frame[column].fillna("").astype(str)
     frame["kb_chunk_id"] = frame["kb_chunk_id"].astype(str)
     return frame.reindex(columns=KB_FINAL_OUTPUT_COLUMNS)
+
+
+def _kb_refine_texts_with_groq(frame: pd.DataFrame) -> pd.DataFrame:
+    groq_api_key = os.getenv(GROQ_API_KEY_ENV_VAR)
+    if not groq_api_key:
+        raise RuntimeError(f"Missing {GROQ_API_KEY_ENV_VAR} in environment.")
+
+    try:
+        from groq import Groq
+    except ImportError as error:
+        raise RuntimeError(
+            "Missing dependency 'groq'. Install it with: .\\.venv\\Scripts\\python.exe -m pip install groq"
+        ) from error
+
+    client = Groq(api_key=groq_api_key)
+    refined_frame = frame.copy()
+
+    for row_number, row in enumerate(refined_frame.itertuples(index=False), start=1):
+        refined_text = _kb_request_refined_text(
+            client=client,
+            kb_chunk_id=row.kb_chunk_id,
+            kb_title=row.kb_title,
+            kb_process_type=row.kb_process_type,
+            kb_text=row.kb_text,
+            model_name=GROQ_INCIDENT_DESCRIPTION_MODEL,
+            max_retries=GROQ_MAX_RETRIES,
+        )
+        refined_frame.at[row_number - 1, KB_GROQ_REFINED_TEXT_COLUMN] = refined_text
+
+        if row_number < len(refined_frame):
+            time.sleep(GROQ_REQUEST_DELAY_SECONDS)
+
+    return refined_frame
+
+
+def _kb_request_refined_text(
+    client,
+    kb_chunk_id: str,
+    kb_title: str,
+    kb_process_type: str,
+    kb_text: str,
+    model_name: str,
+    max_retries: int,
+) -> str:
+    last_error = None
+    prompt_modes = ["full", "compact"]
+
+    for prompt_mode in prompt_modes:
+        prompt = _kb_build_groq_prompt(
+            kb_chunk_id=kb_chunk_id,
+            kb_title=kb_title,
+            kb_process_type=kb_process_type,
+            kb_text=kb_text,
+            prompt_mode=prompt_mode,
+        )
+
+        for attempt in range(1, max_retries + 1):
+            try:
+                response = client.chat.completions.create(
+                    model=model_name,
+                    messages=[
+                        {"role": "system", "content": _kb_groq_system_prompt()},
+                        {"role": "user", "content": prompt},
+                    ],
+                    temperature=0.2,
+                    max_completion_tokens=1200,
+                    top_p=1,
+                    stream=False,
+                )
+                content = (response.choices[0].message.content or "").strip()
+                if content:
+                    return content
+            except Exception as error:  # noqa: BLE001
+                last_error = error
+                error_text = str(error)
+                if "Request too large" in error_text or "rate_limit_exceeded" in error_text:
+                    break
+                if attempt == max_retries:
+                    break
+                time.sleep(attempt * 5)
+
+    raise RuntimeError(f"Failed to refine kb_text with Groq: {last_error}") from last_error
+
+
+def _kb_build_groq_prompt(
+    kb_chunk_id: str,
+    kb_title: str,
+    kb_process_type: str,
+    kb_text: str,
+    prompt_mode: str,
+) -> str:
+    source_text = kb_text if prompt_mode == "full" else _kb_compact_source_text(kb_text)
+    metadata = {
+        "kb_chunk_id": kb_chunk_id,
+        "kb_title": kb_title,
+        "kb_process_type": kb_process_type,
+        "prompt_mode": prompt_mode,
+    }
+    return (
+        "Refine this Ubuntu knowledge-base thread text for retrieval embedding.\n"
+        f"Metadata: {json.dumps(metadata, ensure_ascii=True)}\n"
+        "Source text:\n"
+        f"{source_text}"
+    )
+
+
+def _kb_groq_system_prompt() -> str:
+    return """You clean and compress Ubuntu support knowledge-base text for retrieval embeddings.
+
+Rewrite the text to be shorter and denser while preserving all important Linux/logging concepts.
+
+Rules:
+- Return plain text only.
+- Keep important process names, services, package names, commands, file paths, config names, error messages, log snippets, and root-cause clues.
+- Remove greetings, signatures, repetition, fluff, social text, and irrelevant figures or counts unless they matter technically.
+- Preserve the problem, environment, symptoms, attempted fixes, and resolution details when present.
+- Do not invent facts.
+- Keep important keywords exactly when possible.
+"""
+
+
+def _kb_compact_source_text(text: str) -> str:
+    normalized_text = str(text or "").strip()
+    if len(normalized_text) <= KB_GROQ_TEXT_MAX_CHARS:
+        return normalized_text
+
+    head_chars = 8000
+    tail_chars = 3500
+    return (
+        normalized_text[:head_chars]
+        + "\n\n[content truncated for length]\n\n"
+        + normalized_text[-tail_chars:]
+    )
 
 
 def _kb_build_cohere_client(cohere_module, api_key: str):

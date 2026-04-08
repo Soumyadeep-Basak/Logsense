@@ -5,11 +5,15 @@ from __future__ import annotations
 from typing import Any
 
 import pandas as pd
+try:
+    from langchain_core.tools import tool
+except ImportError:  # pragma: no cover - compatibility fallback
+    from langchain.tools import tool
 
 from app.tools._tool_data_loader import load_final, load_parsed_logs
 
 
-def expand_incident_context(chunk_id: str) -> dict[str, Any]:
+def _expand_incident_context_impl(chunk_id: str) -> dict[str, Any]:
     """Return descriptions and raw log lines for a given incident chunk id."""
     df = load_final()
     if df.empty or "chunk_id" not in df.columns:
@@ -65,5 +69,17 @@ def _safe_int(value: object) -> int:
     return int(numeric) if pd.notna(numeric) else 0
 
 
+@tool
+def expand_incident_context(chunk_id: str) -> dict[str, Any]:
+    """Expand one incident chunk into its raw log context and descriptions.
+
+    Use this when the LLM needs the underlying log lines for a known chunk id
+    in order to explain, diagnose, or summarize the incident in more detail.
+    Returns one dictionary with incident metadata, descriptive text, raw lines,
+    and line count, or an error payload if the chunk is missing.
+    """
+    return _expand_incident_context_impl(chunk_id=chunk_id)
+
+
 if __name__ == "__main__":
-    print(ascii(expand_incident_context("chunk_0")))
+    print(ascii(_expand_incident_context_impl("chunk_0")))

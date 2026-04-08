@@ -6,13 +6,17 @@ import logging
 from typing import Any
 
 import pandas as pd
+try:
+    from langchain_core.tools import tool
+except ImportError:  # pragma: no cover - compatibility fallback
+    from langchain.tools import tool
 
 from app.tools._tool_data_loader import load_anomalies, load_final
 
 LOGGER = logging.getLogger(__name__)
 
 
-def filter_incidents(
+def _filter_incidents_impl(
     process_name: str | None = None,
     start_time: str | None = None,
     end_time: str | None = None,
@@ -121,5 +125,26 @@ def _row_to_incident_dict(row: pd.Series) -> dict[str, Any]:
     }
 
 
+@tool
+def filter_incidents(
+    process_name: str | None = None,
+    start_time: str | None = None,
+    end_time: str | None = None,
+    anomaly_only: bool = True,
+) -> list[dict[str, Any]]:
+    """Filter incidents by process name, optional time range, and anomaly flag.
+
+    Use this when the LLM needs a narrowed incident set, especially for
+    anomaly-focused analysis or process-specific troubleshooting.
+    Returns a list of incident summary dictionaries matching the requested filters.
+    """
+    return _filter_incidents_impl(
+        process_name=process_name,
+        start_time=start_time,
+        end_time=end_time,
+        anomaly_only=anomaly_only,
+    )
+
+
 if __name__ == "__main__":
-    print(ascii(filter_incidents()))
+    print(ascii(_filter_incidents_impl()))

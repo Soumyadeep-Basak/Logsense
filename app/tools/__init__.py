@@ -8,6 +8,7 @@ from app.tools.tool_raw_log_window import get_raw_log_window
 from app.tools.tool_recent_incidents import get_recent_incidents
 from app.tools.tool_search_kb import search_kb
 from app.tools.tool_similar_incidents import get_similar_incidents
+from app.tools.tool_stackoverflow_search import search_stackoverflow
 
 __all__ = [
     "get_recent_incidents",
@@ -18,4 +19,6 @@ __all__ = [
     "get_similar_incidents",
     "get_raw_log_window",
     "get_process_profile",
+    "search_stackoverflow"
+
 ]

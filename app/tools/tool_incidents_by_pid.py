@@ -5,11 +5,15 @@ from __future__ import annotations
 from typing import Any
 
 import pandas as pd
+try:
+    from langchain_core.tools import tool
+except ImportError:  # pragma: no cover - compatibility fallback
+    from langchain.tools import tool
 
 from app.tools._tool_data_loader import load_final
 
 
-def get_incident_by_pid(pid: str, limit: int = 3) -> list[dict[str, Any]]:
+def _get_incident_by_pid_impl(pid: str, limit: int = 3) -> list[dict[str, Any]]:
     """Return recent incidents whose process_pid field contains the given pid."""
     if not str(pid).strip():
         return []
@@ -53,5 +57,16 @@ def _row_to_incident_dict(row: pd.Series) -> dict[str, Any]:
     }
 
 
+@tool
+def get_incident_by_pid(pid: str, limit: int = 3) -> list[dict[str, Any]]:
+    """Find incidents associated with a specific process PID string.
+
+    Use this when the LLM already knows a PID from logs or prior context and
+    wants matching incident chunks without scanning all incidents manually.
+    Returns a list of incident summary dictionaries ordered by recency.
+    """
+    return _get_incident_by_pid_impl(pid=pid, limit=limit)
+
+
 if __name__ == "__main__":
-    print(ascii(get_incident_by_pid("123")))
+    print(ascii(_get_incident_by_pid_impl("123")))

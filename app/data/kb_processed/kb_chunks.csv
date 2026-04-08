@@ -1,5 +1,5 @@
 kb_chunk_id,kb_source,kb_url,kb_title,kb_process_type,kb_category_id,kb_views,kb_reply_count,kb_text
-kb_discourse_30189,ubuntu_discourse,https://discourse.ubuntu.com/t/30189,SSHd now uses socket-based activation (Ubuntu 22.10 and later),"sshd,sudo,dhclient,systemd",17,69851,28,"QUESTION: SSHd now uses socket-based activation (Ubuntu 22.10 and later)
+kb_discourse_30189,ubuntu_discourse,https://discourse.ubuntu.com/t/30189,SSHd now uses socket-based activation (Ubuntu 22.10 and later),"sshd,sudo,dhclient,systemd",17,69899,28,"QUESTION: SSHd now uses socket-based activation (Ubuntu 22.10 and later)
 As of version 1:9.0p1-1ubuntu1 of 
 openssh-server
  in Kinetic Kudu (Ubuntu 22.10), OpenSSH in Ubuntu is configured by default to use systemd socket activation.  This means that sshd will not be started until an incoming connection request is received.  This has been done to reduce the memory consumed by Ubuntu Server instances by default, which is of particular interest with Ubuntu running in VMs or LXD containers: by not running sshd when it is not used, we save at least 3MiB of memory in each instance, representing a savings of roughly 5% on an idle, pristine kinetic container.
@@ -273,7 +273,7 @@ sudo systemctl daemon-reload
 sudo systemctl restart ssh
 
 Thanks"
-kb_discourse_20268,ubuntu_discourse,https://discourse.ubuntu.com/t/20268,How to compile kernel in ubuntu 20.04,"kernel,sudo,dhclient",5,40042,5,"QUESTION: How to compile kernel in ubuntu 20.04
+kb_discourse_20268,ubuntu_discourse,https://discourse.ubuntu.com/t/20268,How to compile kernel in ubuntu 20.04,"kernel,sudo,dhclient",5,40044,5,"QUESTION: How to compile kernel in ubuntu 20.04
 STEP 1: FIRST TYPE IN TERMINAL : sudo nano /etc/default/grub
 
 where nano is your TEXT editor
@@ -546,6 +546,45 @@ GEN     debian
 error: creating source package requires git repository
 
 What’s the next command to install the recompiled kernel or better to produce a deb package ?"
+kb_discourse_25032,ubuntu_discourse,https://discourse.ubuntu.com/t/25032,Does a boot parameter called `cgroup_memory` exist in the Ubuntu kernel?,kernel,17,3005,1,"QUESTION: Does a boot parameter called `cgroup_memory` exist in the Ubuntu kernel?
+I have noticed a lot of articles online related to Kubernetes and Ubuntu guiding users to enable the boot parameters 
+cgroup_enable=memory
+ and 
+cgroup_memory=1
+, including the one for microk8s (ref: 
+https://ubuntu.com/tutorials/how-to-kubernetes-cluster-on-raspberry-pi#4-installing-microk8s
+). Now, memory is disabled by default in the raspberry pi kernel so enabling it makes sense but I couldn’t find any mention of the boot parameter called 
+cgroup_memory
+ anywhere. The closest I could come was 
+cgroup.memory
+ but that doesn’t take in 1 as a value and looking at the source code, entering a wrong value would silently fail.
+
+Moreover, I checked the git log of the Ubuntu kernel to see any mention of 
+cgroup_memory
+ and I found only 1 instance, which too was confirmed as a typo by the author (ref: 
+https://twitter.com/defineSayak/status/1453712847741931530
+).
+
+Any idea if such a boot parameter exists and if it does, can someone point me to it?
+
+ANSWERS:
+The kernel parameters should be listed at 
+https://www.kernel.org/doc/Documentation/admin-guide/kernel-parameters.txt
+
+The 
+/boot/firmware/cmdline.txt
+ is maybe parsed by another software and then translated into the correct kernel parameters.
+
+apt-ghetto:
+
+The kernel parameters should be listed at 
+https://www.kernel.org/doc/Documentation/admin-guide/kernel-parameters.txt
+
+I have gone through it, which is why I know the 
+cgroup_memory
+ is not a valid kernel parameter. Is there any way to know what is parsing 
+cmdline.txt
+?"
 kb_discourse_20000,ubuntu_discourse,https://discourse.ubuntu.com/t/20000,Landscape-package-changer segfaulting with new apt update,kernel,17,882,1,"QUESTION: Landscape-package-changer segfaulting with new apt update
 Hi folks,
 
@@ -662,7 +701,7 @@ multipath-tools, though the systemd unit at least prevents that for running by d
 Image and Deployment Size Implications
 
 Actually using this new metapackage has an implication of increased image size and installation size. This is really a matter for the separate spec that will define what packages will be added and consider those trade-offs, and are out of scope of this spec. However, in the decisions taken in this spec, we narrow our opportunity to differentiate based on image type (eg. Desktop vs. Server) and it is reasonable to consider whether this is appropriate. Product management has indicated that this is acceptable."
-kb_discourse_67909,ubuntu_discourse,https://discourse.ubuntu.com/t/67909,Ubuntu 24.04 unattended-upgrades failed to restart nginx,"sshd,CRON,systemd",17,613,0,"QUESTION: Ubuntu 24.04 unattended-upgrades failed to restart nginx
+kb_discourse_67909,ubuntu_discourse,https://discourse.ubuntu.com/t/67909,Ubuntu 24.04 unattended-upgrades failed to restart nginx,"sshd,CRON,systemd",17,616,0,"QUESTION: Ubuntu 24.04 unattended-upgrades failed to restart nginx
 Today unattended-upgrades upgraded libc6 and restarted all services using it.
 
 I don’t want to discuss whether unattended-upgrades should or should not restart services, I will go with whatever Ubuntu 24.04’s default behavior is.
@@ -760,7 +799,7 @@ In the end, regardless of the reason, what happened is that your service failed 
 Perhaps file a bug against glibc, since its update is what started this all, and the developers can go from there to see what’s the best way to handle this scenario in a generic way.
 
 For your specific case, I suggest, for now, to investigate the alternatives I listed above, particularly in unattended-upgrades and needrestart configuration options."
-kb_discourse_62353,ubuntu_discourse,https://discourse.ubuntu.com/t/62353,Help Wiki contribution blocked – duplicate section and invalid links in NetworkManager page,NetworkManager,5,462,3,"QUESTION: Help Wiki contribution blocked – duplicate section and invalid links in NetworkManager page
+kb_discourse_62353,ubuntu_discourse,https://discourse.ubuntu.com/t/62353,Help Wiki contribution blocked – duplicate section and invalid links in NetworkManager page,NetworkManager,5,463,3,"QUESTION: Help Wiki contribution blocked – duplicate section and invalid links in NetworkManager page
 Hi everyone,
 
 I noticed that the 
@@ -865,7 +904,7 @@ Hi Armon,
 I’m sorry to hear you’ve been waiting so long to join the ubuntu-wiki-editors team—that must be frustrating! Your enthusiasm for fixing the NetworkManager page is awesome, and it’s great to see your dedication to improving Ubuntu’s documentation. For your questions, I’d suggest posting the specific changes (like a patch or diff) directly in this thread or on the Ubuntu documentation mailing list to get feedback from active maintainers. For the Launchpad team join issue, you could try reaching out to the Ubuntu Documentation Team via their mailing list or on the Ubuntu Community Hub to nudge someone to review your request. Collaborating with an existing editor might also work—maybe share your proposed fixes here, and someone with access could help apply them.
 
 Have you tried contacting anyone directly from the Ubuntu Documentation Team yet, or is this thread your first step?"
-kb_discourse_73765,ubuntu_discourse,https://discourse.ubuntu.com/t/73765,Ubuntu Server Gazette - Issue 10 - The unbelievable number of supported kernels in Ubuntu,"kernel,dhclient",17,346,0,"QUESTION: Ubuntu Server Gazette - Issue 10 - The unbelievable number of supported kernels in Ubuntu
+kb_discourse_73765,ubuntu_discourse,https://discourse.ubuntu.com/t/73765,Ubuntu Server Gazette - Issue 10 - The unbelievable number of supported kernels in Ubuntu,"kernel,dhclient",17,350,0,"QUESTION: Ubuntu Server Gazette - Issue 10 - The unbelievable number of supported kernels in Ubuntu
 This issue of the Gazette started when a coworker told me he only realized Canonical does our own backports after he joined the company… From there, more questions came up and were answered, so I wanted to explain everything you might have wanted to know about the Linux kernel in Ubuntu. We’ll start with how many supported kernels there are and why, and then add a few further related topics - like how to know which kernel version contains a specific patch. Thanks for reading!
 
 How many?

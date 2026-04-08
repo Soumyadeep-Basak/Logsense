@@ -3,6 +3,10 @@
 from __future__ import annotations
 
 from typing import Any
+try:
+    from langchain_core.tools import tool
+except ImportError:  # pragma: no cover - compatibility fallback
+    from langchain.tools import tool
 
 from app.tools._tool_data_loader import (
     bm25_tokenize,
@@ -15,7 +19,7 @@ from app.tools._tool_data_loader import (
 RRF_K = 60
 
 
-def search_kb(
+def _search_kb_impl(
     query: str,
     process_type: str | None = None,
     top_k: int = 5,
@@ -47,7 +51,7 @@ def search_kb(
     return [payload for _, payload in scored_rows[:top_k]]
 
 
-def search_kb_with_query_embedding(
+def _search_kb_with_query_embedding_impl(
     query: str,
     query_embedding: list[float],
     process_type: str | None = None,
@@ -152,5 +156,42 @@ def _row_to_kb_dict(row, score: float) -> dict[str, Any]:
     }
 
 
+@tool
+def search_kb(
+    query: str,
+    process_type: str | None = None,
+    top_k: int = 5,
+) -> list[dict[str, Any]]:
+    """Search the local Ubuntu knowledge base for incident-relevant discussions.
+
+    Use this when the LLM needs remediation context, prior issue threads, or
+    supporting knowledge related to a log pattern, process, or failure mode.
+    Returns a ranked list of KB result dictionaries with title, URL, text,
+    process type, and score.
+    """
+    return _search_kb_impl(query=query, process_type=process_type, top_k=top_k)
+
+
+@tool
+def search_kb_with_query_embedding(
+    query: str,
+    query_embedding: list[float],
+    process_type: str | None = None,
+    top_k: int = 5,
+) -> list[dict[str, Any]]:
+    """Run hybrid BM25 plus vector search over the local knowledge base.
+
+    Use this when the LLM or caller already has a query embedding and wants
+    stronger semantic matching than keyword search alone.
+    Returns a ranked list of KB result dictionaries with fused hybrid scores.
+    """
+    return _search_kb_with_query_embedding_impl(
+        query=query,
+        query_embedding=query_embedding,
+        process_type=process_type,
+        top_k=top_k,
+    )
+
+
 if __name__ == "__main__":
-    print(ascii(search_kb("ssh authentication failure")))
+    print(ascii(_search_kb_impl("ssh authentication failure")))

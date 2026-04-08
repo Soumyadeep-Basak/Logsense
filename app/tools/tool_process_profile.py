@@ -3,11 +3,15 @@
 from __future__ import annotations
 
 from typing import Any
+try:
+    from langchain_core.tools import tool
+except ImportError:  # pragma: no cover - compatibility fallback
+    from langchain.tools import tool
 
 from app.tools._tool_data_loader import load_anomalies, load_final, load_parsed_logs
 
 
-def get_process_profile(process_name: str) -> dict[str, Any]:
+def _get_process_profile_impl(process_name: str) -> dict[str, Any]:
     """Return incident counts, anomaly rate, templates, and known PIDs for a process."""
     df = load_final()
     if df.empty or "process_name" not in df.columns:
@@ -81,5 +85,17 @@ def _is_truthy(value: object) -> bool:
     return str(value).strip().lower() in {"1", "true", "yes", "y"}
 
 
+@tool
+def get_process_profile(process_name: str) -> dict[str, Any]:
+    """Summarize how a process appears across incidents and parsed logs.
+
+    Use this when the LLM needs a quick profile for one process, including
+    incident volume, anomaly rate, common templates, and known PIDs.
+    Returns one dictionary describing the process profile or an error payload
+    if that process is not found in the incident data.
+    """
+    return _get_process_profile_impl(process_name=process_name)
+
+
 if __name__ == "__main__":
-    print(ascii(get_process_profile("sshd")))
+    print(ascii(_get_process_profile_impl("sshd")))
