@@ -8,7 +8,10 @@ numpy
 logai; python_version < "3.13"
 
 langchain
+langchain-cohere
+langchain-openai
 langgraph
+langsmith
 
 sentence-transformers
 
@@ -19,6 +22,8 @@ openai   # used as client for Grok endpoint
 groq
 
 cohere
+datasets
+ragas
 
 scikit-learn
 
@@ -34,3 +39,5 @@ requests
 beautifulsoup4 
 rank_bm25 
 mcp
+ragas
+google-generativeai

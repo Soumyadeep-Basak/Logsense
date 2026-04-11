@@ -6,13 +6,13 @@ from app.agent.nodes import final_node, pre_retrieval_node, reasoning_node, tool
 from app.agent.state import AgentState
 
 
-def build_graph(llm):
+def build_graph(llm, tracer=None):
     builder = StateGraph(AgentState)
 
     builder.add_node("pre", pre_retrieval_node)
-    builder.add_node("reason", lambda state: reasoning_node(state, llm))
+    builder.add_node("reason", lambda state: reasoning_node(state, llm, tracer))
     builder.add_node("tool", tool_node)
-    builder.add_node("final", lambda state: final_node(state, llm))
+    builder.add_node("final", lambda state: final_node(state, llm, tracer))
 
     builder.add_edge(START, "pre")
     builder.add_edge("pre", "reason")

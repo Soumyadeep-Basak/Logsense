@@ -1,0 +1,113 @@
+{
+  "aggregate": {
+    "context_precision": null,
+    "context_recall": 0.3333333333333333,
+    "faithfulness": 0.6666666666666666,
+    "answer_relevancy": 0.1633211383939571
+  },
+  "by_sample": [
+    {
+      "user_input": "Analyze anomaly in logs",
+      "retrieved_contexts": [
+        "Jun 17 07:07:02 combo ftpd[29510]: connection from 24.54.76.216 (24-54-76-216.bflony.adelphia.net) at Fri Jun 17 07:07:02 2005",
+        "Jun 17 07:07:04 combo ftpd[29511]: connection from 24.54.76.216 (24-54-76-216.bflony.adelphia.net) at Fri Jun 17 07:07:04 2005",
+        "Jun 17 19:43:13 combo sshd(pam_unix)[30565]: authentication failure; logname= uid=0 euid=0 tty=NODEVssh ruser= rhost=211.46.224.253  user=guest",
+        "Jun 17 20:29:26 combo sshd(pam_unix)[30631]: session opened for user test by (uid=509)",
+        "Jun 17 20:34:57 combo sshd(pam_unix)[30631]: session closed for user test",
+        "Jun 17 20:55:06 combo ftpd[30755]: connection from 82.252.162.81 (lns-vlq-45-tou-82-252-162-81.adsl.proxad.net) at Fri Jun 17 20:55:06 2005",
+        "Jun 17 20:55:06 combo ftpd[30754]: connection from 82.252.162.81 (lns-vlq-45-tou-82-252-162-81.adsl.proxad.net) at Fri Jun 17 20:55:06 2005"
+      ],
+      "response": "Anomalous SSHD process activity detected, potentially indicating unauthorized access or malicious activity.",
+      "reference": "Anomalous SSHD process activity detected, potentially indicating unauthorized access or malicious activity.",
+      "context_precision": null,
+      "context_recall": null,
+      "faithfulness": null,
+      "answer_relevancy": 0.1984338440917673
+    },
+    {
+      "user_input": "Analyze anomaly in logs",
+      "retrieved_contexts": [
+        "Jun 18 01:30:59 combo sshd(pam_unix)[31198]: authentication failure; logname= uid=0 euid=0 tty=NODEVssh ruser= rhost=adsl-70-242-75-179.dsl.ksc2mo.swbell.net",
+        "Jun 18 01:30:59 combo sshd(pam_unix)[31202]: check pass; user unknown",
+        "Jun 18 01:30:59 combo sshd(pam_unix)[31202]: authentication failure; logname= uid=0 euid=0 tty=NODEVssh ruser= rhost=adsl-70-242-75-179.dsl.ksc2mo.swbell.net",
+        "Jun 18 01:30:59 combo sshd(pam_unix)[31205]: check pass; user unknown",
+        "Jun 18 01:30:59 combo sshd(pam_unix)[31205]: authentication failure; logname= uid=0 euid=0 tty=NODEVssh ruser= rhost=adsl-70-242-75-179.dsl.ksc2mo.swbell.net",
+        "Jun 18 01:30:59 combo sshd(pam_unix)[31200]: check pass; user unknown",
+        "Jun 18 01:30:59 combo sshd(pam_unix)[31200]: authentication failure; logname= uid=0 euid=0 tty=NODEVssh ruser= rhost=adsl-70-242-75-179.dsl.ksc2mo.swbell.net",
+        "Jun 18 01:30:59 combo sshd(pam_unix)[31206]: check pass; user unknown",
+        "Jun 18 01:30:59 combo sshd(pam_unix)[31206]: authentication failure; logname= uid=0 euid=0 tty=NODEVssh ruser= rhost=adsl-70-242-75-179.dsl.ksc2mo.swbell.net",
+        "Jun 18 01:30:59 combo sshd(pam_unix)[31204]: check pass; user unknown",
+        "Jun 18 01:30:59 combo sshd(pam_unix)[31204]: authentication failure; logname= uid=0 euid=0 tty=NODEVssh ruser= rhost=adsl-70-242-75-179.dsl.ksc2mo.swbell.net",
+        "Jun 18 01:30:59 combo sshd(pam_unix)[31203]: check pass; user unknown",
+        "Jun 18 01:30:59 combo sshd(pam_unix)[31203]: authentication failure; logname= uid=0 euid=0 tty=NODEVssh ruser= rhost=adsl-70-242-75-179.dsl.ksc2mo.swbell.net",
+        "Jun 18 01:30:59 combo sshd(pam_unix)[31207]: check pass; user unknown",
+        "Jun 18 01:30:59 combo sshd(pam_unix)[31207]: authentication failure; logname= uid=0 euid=0 tty=NODEVssh ruser= rhost=adsl-70-242-75-179.dsl.ksc2mo.swbell.net",
+        "Jun 18 02:08:10 combo ftpd[31272]: connection from 82.252.162.81 (lns-vlq-45-tou-82-252-162-81.adsl.proxad.net) at Sat Jun 18 02:08:10 2005",
+        "Jun 18 02:08:10 combo ftpd[31273]: connection from 82.252.162.81 (lns-vlq-45-tou-82-252-162-81.adsl.proxad.net) at Sat Jun 18 02:08:10 2005",
+        "Jun 18 02:08:10 combo ftpd[31274]: connection from 82.252.162.81 (lns-vlq-45-tou-82-252-162-81.adsl.proxad.net) at Sat Jun 18 02:08:10 2005",
+        "Jun 18 02:08:10 combo ftpd[31275]: connection from 82.252.162.81 (lns-vlq-45-tou-82-252-162-81.adsl.proxad.net) at Sat Jun 18 02:08:10 2005"
+      ],
+      "response": "Anomalous authentication failure pattern detected in sshd process.",
+      "reference": "Anomalous authentication failure pattern detected in sshd process.",
+      "context_precision": null,
+      "context_recall": null,
+      "faithfulness": null,
+      "answer_relevancy": 0.0738281768251858
+    },
+    {
+      "user_input": "Analyze anomaly in logs",
+      "retrieved_contexts": [
+        "Jun 18 02:08:12 combo ftpd[31285]: connection from 82.252.162.81 (lns-vlq-45-tou-82-252-162-81.adsl.proxad.net) at Sat Jun 18 02:08:12 2005",
+        "Jun 18 02:08:12 combo ftpd[31286]: connection from 82.252.162.81 (lns-vlq-45-tou-82-252-162-81.adsl.proxad.net) at Sat Jun 18 02:08:12 2005",
+        "Jun 18 02:23:10 combo ftpd[31277]: User unknown timed out after 900 seconds at Sat Jun 18 02:23:10 2005",
+        "Jun 18 04:07:05 combo su(pam_unix)[31791]: session opened for user cyrus by (uid=0)",
+        "Jun 18 04:07:06 combo su(pam_unix)[31791]: session closed for user cyrus",
+        "Jun 18 04:07:06 combo logrotate: ALERT exited abnormally with [1]",
+        "Jun 18 04:12:42 combo su(pam_unix)[32164]: session opened for user news by (uid=0)"
+      ],
+      "response": "Anomalous ftpd process activity detected, potentially indicating unauthorized access or privilege escalation.",
+      "reference": "Anomalous ftpd process activity detected, potentially indicating unauthorized access or privilege escalation.",
+      "context_precision": null,
+      "context_recall": 1.0,
+      "faithfulness": null,
+      "answer_relevancy": 0.2054928343223923
+    },
+    {
+      "user_input": "Analyze anomaly in logs",
+      "retrieved_contexts": [
+        "Jun 19 04:08:55 combo su(pam_unix)[2192]: session closed for user cyrus",
+        "Jun 19 04:08:57 combo cups: cupsd shutdown succeeded",
+        "Jun 19 04:09:02 combo cups: cupsd startup succeeded",
+        "Jun 19 04:09:11 combo syslogd 1.4.1: restart.",
+        "Jun 19 04:09:11 combo logrotate: ALERT exited abnormally with [1]",
+        "Jun 19 04:15:18 combo su(pam_unix)[3676]: session opened for user news by (uid=0)",
+        "Jun 19 04:15:18 combo su(pam_unix)[3676]: session closed for user news",
+        "Jun 20 03:40:59 combo ftpd[8829]: connection from 222.33.90.199 () at Mon Jun 20 03:40:59 2005"
+      ],
+      "response": "Anomalous process 'cups' with dominant PID 2192, indicating potential system instability or security breach.",
+      "reference": "Anomalous process 'cups' with dominant PID 2192, indicating potential system instability or security breach.",
+      "context_precision": null,
+      "context_recall": 0.0,
+      "faithfulness": null,
+      "answer_relevancy": 0.14439893127763306
+    },
+    {
+      "user_input": "Analyze anomaly in logs",
+      "retrieved_contexts": [
+        "Jun 20 04:08:37 combo su(pam_unix)[9558]: session opened for user news by (uid=0)",
+        "Jun 20 04:08:38 combo su(pam_unix)[9558]: session closed for user news",
+        "Jun 20 04:44:39 combo snmpd[2318]: Received SNMP packet(s) from 67.170.148.126",
+        "Jun 20 09:20:05 combo sshd(pam_unix)[10035]: check pass; user unknown",
+        "Jun 20 09:20:05 combo sshd(pam_unix)[10035]: authentication failure; logname= uid=0 euid=0 tty=NODEVssh ruser= rhost=65.166.159.14",
+        "Jun 20 09:20:05 combo sshd(pam_unix)[10037]: check pass; user unknown",
+        "Jun 20 09:20:05 combo sshd(pam_unix)[10037]: authentication failure; logname= uid=0 euid=0 tty=NODEVssh ruser= rhost=65.166.159.14"
+      ],
+      "response": "Anomalous snmpd process activity detected, potentially indicating unauthorized access or malicious activity.",
+      "reference": "Anomalous snmpd process activity detected, potentially indicating unauthorized access or malicious activity.",
+      "context_precision": null,
+      "context_recall": 0.0,
+      "faithfulness": 0.6666666666666666,
+      "answer_relevancy": 0.19445190545280716
+    }
+  ]
+}

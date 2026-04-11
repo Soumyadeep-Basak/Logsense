@@ -73,7 +73,7 @@ def pre_retrieval_node(state: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def reasoning_node(state: dict[str, Any], llm) -> dict[str, Any]:
+def reasoning_node(state: dict[str, Any], llm, tracer=None) -> dict[str, Any]:
     steps = int(state.get("steps", 0))
     if steps >= MAX_TOOL_STEPS:
         return {"decision": "answer"}
@@ -88,7 +88,7 @@ def reasoning_node(state: dict[str, Any], llm) -> dict[str, Any]:
             default=str,
         ),
     )
-    decision_payload = _invoke_json_llm(llm, prompt)
+    decision_payload = _invoke_json_llm(llm, prompt, tracer=tracer)
     action = str(decision_payload.get("action", "answer")).strip().lower()
     if action not in ALLOWED_ACTIONS:
         action = "answer"
@@ -143,7 +143,7 @@ def tool_node(state: dict[str, Any]) -> dict[str, Any]:
     return {"steps": steps}
 
 
-def final_node(state: dict[str, Any], llm) -> dict[str, Any]:
+def final_node(state: dict[str, Any], llm, tracer=None) -> dict[str, Any]:
     prompt = FINAL_PROMPT.format(
         query=state.get("query", ""),
         risk_score=state.get("risk_score", 0.0),
@@ -158,7 +158,7 @@ def final_node(state: dict[str, Any], llm) -> dict[str, Any]:
         kb=json.dumps(state.get("kb_results", []), ensure_ascii=True, default=str),
     )
 
-    answer = _invoke_json_llm(llm, prompt)
+    answer = _invoke_json_llm(llm, prompt, tracer=tracer)
     answer["important_log_lines"] = _ensure_string_list(answer.get("important_log_lines", []))
     answer["troubleshooting"] = _ensure_string_list(answer.get("troubleshooting", []))
     answer["confidence"] = _safe_float(answer.get("confidence", 0.0))
@@ -166,8 +166,14 @@ def final_node(state: dict[str, Any], llm) -> dict[str, Any]:
     return {"answer": answer}
 
 
-def _invoke_json_llm(llm, prompt: str) -> dict[str, Any]:
-    response = llm.invoke(prompt)
+def _invoke_json_llm(llm, prompt: str, tracer=None) -> dict[str, Any]:
+    if tracer is not None:
+        try:
+            response = llm.invoke(prompt, config={"callbacks": [tracer]})
+        except TypeError:
+            response = llm.invoke(prompt)
+    else:
+        response = llm.invoke(prompt)
 
     if isinstance(response, dict):
         return response
